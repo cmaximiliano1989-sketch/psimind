@@ -902,49 +902,90 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
 <!-- ══ NOTIFICACIONES ══ -->
 <div class="section" id="section-notificaciones">
 <div class="main">
-  <div class="section-h1 mb-6">Recordatorios <em>automáticos</em></div>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px">
+    <div class="section-h1" style="margin-bottom:0">Recordatorios <em>inteligentes</em></div>
+    <button class="btn primary" onclick="escanearYEnviarRecordatorios()">📱 Enviar recordatorios pendientes</button>
+  </div>
+
   <div id="notif-wsp-banner" style="background:var(--amber-light);border:1px solid rgba(196,136,46,0.3);border-radius:12px;padding:12px 1.2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <span style="font-size:13px;color:var(--amber)">⚠️ <strong>Sin número de WhatsApp configurado.</strong> Configuralo para activar los recordatorios automatizados.</span>
+    <span style="font-size:13px;color:var(--amber)">⚠️ <strong>Sin número de WhatsApp configurado.</strong> Configuralo para activar los recordatorios.</span>
     <button class="btn primary" style="font-size:12px;white-space:nowrap" onclick="navigate('configuracion','wsp')">⚙️ Configurar ahora</button>
   </div>
-  <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink);margin-bottom:1rem">Recordatorios al paciente</div>
-  <div class="toggle-wrap">
-    <div class="toggle-row">
-      <div class="toggle-info"><div class="toggle-label">Recordatorio de turno <span class="badge-canal bc-wsp">WhatsApp</span></div><div class="toggle-desc">Mensaje automático al paciente con día, hora y dirección del consultorio.</div></div>
-      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChanged(this,'Recordatorio de turno')"><div class="toggle-slider"></div></label>
-    </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.4rem;border-bottom:1px solid var(--border-soft);gap:1rem">
-      <div style="font-size:13px;color:var(--ink-mid)">¿Con cuánta anticipación?</div>
-      <select style="font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--cream);color:var(--ink);outline:none"><option>24 horas antes</option><option>12 horas antes</option><option selected>2 horas antes</option><option>30 min antes</option></select>
-    </div>
-    <div class="toggle-row" style="border-top:1px solid var(--border-soft)">
-      <div class="toggle-info"><div class="toggle-label">Confirmación de turno <span class="badge-canal bc-wsp">WhatsApp</span></div><div class="toggle-desc">El paciente puede confirmar o cancelar respondiendo el mensaje. Vos recibís una alerta en la app.</div></div>
-      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChanged(this,'Confirmación de turno')"><div class="toggle-slider"></div></label>
-    </div>
-    <div class="toggle-row" style="border-top:1px solid var(--border-soft)">
-      <div class="toggle-info"><div class="toggle-label">Aviso de cobro pendiente <span class="badge-canal bc-wsp">WhatsApp</span></div><div class="toggle-desc">Recordatorio amigable cuando el paciente acumula sesiones sin pagar.</div></div>
-      <label class="toggle-switch"><input type="checkbox" checked onchange="toggleChanged(this,'Aviso de cobro')"><div class="toggle-slider"></div></label>
-    </div>
-  </div>
-  <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink);margin-bottom:1rem">Vista previa de mensajes</div>
-  <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
-    <button class="tab-btn active" onclick="setWSPTpl(this,0)">Recordatorio turno</button>
-    <button class="tab-btn" onclick="setWSPTpl(this,1)">Cobro pendiente</button>
-    <button class="tab-btn" onclick="setWSPTpl(this,2)">Bienvenida</button>
-  </div>
-  <div style="background:#e5ddd5;border-radius:16px;padding:1.2rem;max-width:480px;margin-bottom:1.5rem">
-    <div style="display:flex;align-items:center;gap:10px;background:var(--sage);border-radius:10px 10px 0 0;padding:10px 14px;margin:-1.2rem -1.2rem 14px">
-      <div style="width:36px;height:36px;border-radius:50%;background:var(--sage-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--sage)">VR</div>
-      <div><div style="font-size:14px;font-weight:500;color:white">Profesional</div><div style="font-size:11px;color:rgba(255,255,255,0.75)">PsiMind · mensaje automático</div></div>
-    </div>
-    <div style="background:white;border-radius:0 12px 12px 12px;padding:10px 14px;max-width:85%;box-shadow:0 1px 2px rgba(0,0,0,0.1)">
-      <div style="font-size:13px;color:var(--ink);line-height:1.6" id="notif-preview">Hola <strong>Lucía</strong> 👋<br><br>Te recuerdo que mañana <strong>miércoles 1 de abril</strong> tenés sesión a las <strong>09:30 hs</strong>.<br><br>📍 Av. Corrientes 1234, piso 3 of. B<br><br>¿Confirmás tu asistencia?</div>
-      <div style="font-size:10px;color:var(--ink-soft);text-align:right;margin-top:4px">09:00 ✓✓</div>
+
+  <!-- Configuración de anticipación -->
+  <div class="card" style="margin-bottom:1.5rem">
+    <div style="padding:1.2rem 1.4rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--ink);margin-bottom:1rem">Configuración de recordatorios</div>
+      <div class="toggle-wrap">
+        <div class="toggle-row">
+          <div class="toggle-info">
+            <div class="toggle-label">Recordatorio de turno <span class="badge-canal bc-wsp">WhatsApp</span></div>
+            <div class="toggle-desc">Detecta los turnos próximos y prepara un mensaje personalizado para cada paciente.</div>
+          </div>
+          <label class="toggle-switch"><input type="checkbox" id="notif-toggle-turno" checked><div class="toggle-slider"></div></label>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.4rem;border-top:1px solid var(--border-soft);gap:1rem">
+          <div style="font-size:13px;color:var(--ink-mid)">¿Con cuánta anticipación?</div>
+          <select id="notif-anticipacion" style="font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--cream);color:var(--ink);outline:none" onchange="renderRecordatoriosPendientes()">
+            <option value="1440">24 horas antes</option>
+            <option value="720">12 horas antes</option>
+            <option value="120" selected>2 horas antes</option>
+            <option value="30">30 min antes</option>
+          </select>
+        </div>
+        <div class="toggle-row" style="border-top:1px solid var(--border-soft)">
+          <div class="toggle-info">
+            <div class="toggle-label">Aviso de cobro pendiente <span class="badge-canal bc-wsp">WhatsApp</span></div>
+            <div class="toggle-desc">Recordatorio amigable cuando el paciente tiene sesiones sin pagar.</div>
+          </div>
+          <label class="toggle-switch"><input type="checkbox" id="notif-toggle-cobro" checked><div class="toggle-slider"></div></label>
+        </div>
+      </div>
     </div>
   </div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap">
-    <button class="btn primary" onclick="testNotifWSP()">📱 Probar envío real por WhatsApp</button>
-    <button class="btn" onclick="navigate('configuracion','wsp')">⚙️ Configurar número</button>
+
+  <!-- Lista de recordatorios pendientes -->
+  <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink);margin-bottom:0.75rem">
+    Recordatorios para enviar
+    <span id="notif-badge" style="display:none;background:var(--terra);color:white;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-left:8px;vertical-align:middle"></span>
+  </div>
+  <div id="notif-lista-pendientes">
+    <div style="padding:2rem;text-align:center;color:var(--ink-soft)">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="font-size:14px;font-weight:500;color:var(--ink)">Sin recordatorios pendientes</div>
+      <div style="font-size:13px;font-weight:300">Los turnos próximos aparecerán acá automáticamente</div>
+    </div>
+  </div>
+
+  <!-- Historial de enviados -->
+  <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink);margin:1.5rem 0 0.75rem">Historial de recordatorios</div>
+  <div id="notif-historial">
+    <div style="padding:1.5rem;text-align:center;color:var(--ink-soft);font-size:13px">Los recordatorios enviados aparecerán acá.</div>
+  </div>
+
+  <!-- Template del mensaje -->
+  <div style="font-family:'DM Serif Display',serif;font-size:17px;color:var(--ink);margin:1.5rem 0 0.75rem">Personalizar mensajes</div>
+  <div class="card">
+    <div style="padding:1.2rem 1.4rem">
+      <div style="display:flex;gap:6px;margin-bottom:1rem;flex-wrap:wrap">
+        <button class="tab-btn active" onclick="setWSPTpl(this,0)">Recordatorio turno</button>
+        <button class="tab-btn" onclick="setWSPTpl(this,1)">Cobro pendiente</button>
+        <button class="tab-btn" onclick="setWSPTpl(this,2)">Bienvenida</button>
+      </div>
+      <div style="background:#e5ddd5;border-radius:16px;padding:1.2rem;max-width:480px;margin-bottom:1rem">
+        <div style="display:flex;align-items:center;gap:10px;background:var(--sage);border-radius:10px 10px 0 0;padding:10px 14px;margin:-1.2rem -1.2rem 14px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--sage-light);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:500;color:var(--sage)" id="notif-avatar-preview">?</div>
+          <div><div style="font-size:14px;font-weight:500;color:white" id="notif-prof-preview">Profesional</div><div style="font-size:11px;color:rgba(255,255,255,0.75)">PsiMind · recordatorio</div></div>
+        </div>
+        <div style="background:white;border-radius:0 12px 12px 12px;padding:10px 14px;max-width:85%;box-shadow:0 1px 2px rgba(0,0,0,0.1)">
+          <div style="font-size:13px;color:var(--ink);line-height:1.6" id="notif-preview"></div>
+          <div style="font-size:10px;color:var(--ink-soft);text-align:right;margin-top:4px">✓✓</div>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">Variables disponibles: <code>{nombre}</code> <code>{fecha}</code> <code>{hora}</code> <code>{direccion}</code></div>
+      <textarea id="notif-tpl-editor" style="width:100%;min-height:80px;border-radius:8px;border:1px solid var(--border);padding:10px;font-family:'DM Sans',sans-serif;font-size:13px;resize:vertical;box-sizing:border-box" oninput="actualizarPreviewTpl()"></textarea>
+      <button class="btn primary" style="margin-top:8px" onclick="guardarTemplateTpl()">Guardar template</button>
+    </div>
   </div>
 </div>
 </div>
@@ -1458,6 +1499,10 @@ document.addEventListener('DOMContentLoaded', () => {
   updatePacientesSelects();
   // Renderizar panel de hoy en agenda
   renderSidePanel();
+  // Inicializar templates de notificaciones
+  const tplsInit = getTpls();
+  const editorInit = document.getElementById('notif-tpl-editor');
+  if (editorInit) editorInit.value = tplsInit[0];
 
   // Actualizar métrica de pacientes en dashboard
   const lista = getPacientes();
@@ -1607,9 +1652,199 @@ function updateWSPStatus() {
   }
 }
 
-function testNotifWSP() {
-  const msg = document.getElementById('notif-preview')?.innerText || 'Mensaje de prueba desde PsiMind.';
-  sendWSP(msg);
+// ══ SISTEMA DE NOTIFICACIONES INTELIGENTE ══
+
+const DEFAULT_TPLS = [
+  'Hola {nombre} 👋\n\nTe recuerdo que {cuando} tenés sesión a las {hora} hs.\n\n¿Confirmás tu asistencia? ¡Gracias!',
+  'Hola {nombre}, ¿cómo estás?\n\nTe escribo para recordarte que tenés un saldo pendiente. Cuando puedas coordinamos el pago.\n\n¡Muchas gracias! 🙏',
+  'Hola {nombre}! 🌿\n\n¡Bienvenido/a! Tu turno quedó confirmado.\n\nCualquier consulta no dudes en escribirme.'
+];
+
+let _currentTplIdx = 0;
+
+function getTpls() {
+  try { return JSON.parse(localStorage.getItem('pm_notif_tpls') || 'null') || DEFAULT_TPLS; } catch { return DEFAULT_TPLS; }
+}
+
+function renderRecordatoriosPendientes() {
+  const lista = document.getElementById('notif-lista-pendientes');
+  const badge = document.getElementById('notif-badge');
+  if (!lista) return;
+
+  const turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
+  const deudas = JSON.parse(localStorage.getItem('pm_deudas') || '[]');
+  const anticipMinutos = parseInt(document.getElementById('notif-anticipacion')?.value || '120');
+  const ahora = new Date();
+  const tzOff = ahora.getTimezoneOffset() * 60000;
+  const enviadosIds = JSON.parse(localStorage.getItem('pm_notif_enviados') || '[]');
+  const pacientes = getPacientes();
+  const direccion = localStorage.getItem('pm_direccion') || '';
+
+  // Turnos próximos dentro del período de anticipación
+  const turnosPendientes = turnos.filter(t => {
+    if (t.cobrado !== undefined) return false; // ya finalizado
+    const fechaHoraTurno = new Date(t.fecha + 'T' + (t.hora || '09:00') + ':00');
+    const diffMin = (fechaHoraTurno - ahora) / 60000;
+    return diffMin > 0 && diffMin <= anticipMinutos && !enviadosIds.includes(t.id);
+  });
+
+  // Deudas pendientes para aviso (si toggle activado)
+  const avisarDeudas = document.getElementById('notif-toggle-cobro')?.checked;
+  const deudasPendientes = avisarDeudas
+    ? deudas.filter(d => !enviadosIds.includes('deuda_' + d.id))
+    : [];
+
+  const total = turnosPendientes.length + deudasPendientes.length;
+
+  if (badge) {
+    badge.textContent = total;
+    badge.style.display = total > 0 ? 'inline' : 'none';
+  }
+
+  if (total === 0) {
+    lista.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--ink-soft)">
+      <div style="font-size:32px;margin-bottom:8px">✅</div>
+      <div style="font-size:14px;font-weight:500;color:var(--ink)">Sin recordatorios pendientes</div>
+      <div style="font-size:13px;font-weight:300">Los turnos próximos (dentro de ${anticipMinutos >= 60 ? anticipMinutos/60 + 'hs' : anticipMinutos + 'min'}) aparecerán acá</div>
+    </div>`;
+    return;
+  }
+
+  const tpls = getTpls();
+  const items = [
+    ...turnosPendientes.map(t => {
+      const fechaTurno = new Date(t.fecha + 'T12:00');
+      const esMañana = fechaTurno.toDateString() === new Date(ahora.getTime() + 86400000).toDateString();
+      const esHoy = t.fecha === new Date(ahora - tzOff).toISOString().split('T')[0];
+      const cuando = esHoy ? 'hoy' : esMañana ? 'mañana' : fechaTurno.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
+      const pac = pacientes.find(p => (p.nombre+' '+p.apellido) === t.paciente);
+      const msg = tpls[0]
+        .replace(/{nombre}/g, t.paciente.split(' ')[0])
+        .replace(/{cuando}/g, cuando)
+        .replace(/{hora}/g, t.hora || '')
+        .replace(/{direccion}/g, direccion || 'el consultorio');
+      return { id: t.id, tipo: 'turno', nombre: t.paciente, hora: t.hora, fecha: t.fecha, cuando, tel: pac?.telefono || t.telPaciente || '', msg };
+    }),
+    ...deudasPendientes.map(d => {
+      const pac = pacientes.find(p => (p.nombre+' '+p.apellido) === d.paciente);
+      const msg = tpls[1]
+        .replace(/{nombre}/g, d.paciente.split(' ')[0]);
+      return { id: 'deuda_' + d.id, tipo: 'deuda', nombre: d.paciente, monto: d.montoFmt, tel: pac?.telefono || d.telPaciente || '', msg };
+    })
+  ];
+
+  lista.innerHTML = items.map(item => {
+    const colorTipo = item.tipo === 'turno' ? 'var(--sage)' : 'var(--terra)';
+    const iconTipo = item.tipo === 'turno' ? '📅' : '💰';
+    const subtitulo = item.tipo === 'turno'
+      ? `Turno ${item.cuando} a las ${item.hora} hs`
+      : `Deuda pendiente · ${item.monto}`;
+    const sinTel = !item.tel;
+    return `<div style="display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-bottom:0.5px solid var(--border-soft);background:white">
+      <div style="font-size:24px;flex-shrink:0;margin-top:2px">${iconTipo}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:500;color:var(--ink)">${item.nombre}</div>
+        <div style="font-size:12px;color:${colorTipo};margin-top:2px">${subtitulo}</div>
+        ${sinTel ? '<div style="font-size:11px;color:var(--terra);margin-top:3px">⚠️ Sin teléfono cargado en la ficha del paciente</div>' : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+        <button class="btn primary" style="font-size:12px;padding:6px 12px;white-space:nowrap" ${sinTel ? 'disabled title="Cargá el teléfono del paciente"' : ''} onclick="enviarRecordatorio('${item.id}','${encodeURIComponent(item.msg)}','${item.tel}')">
+          📱 Enviar
+        </button>
+        <button class="row-btn" style="font-size:11px" onclick="marcarEnviado('${item.id}',this.closest('div[style*=border-bottom]'))">Ignorar</button>
+      </div>
+    </div>`;
+  }).join('') + `<div style="padding:10px 16px;background:var(--cream);border-radius:0 0 12px 12px">
+    <button class="btn primary" style="font-size:13px" onclick="enviarTodos()">📱 Enviar todos (${items.length})</button>
+  </div>`;
+}
+
+function enviarRecordatorio(id, msgEncoded, tel) {
+  const msg = decodeURIComponent(msgEncoded);
+  sendWSP(msg, tel);
+  marcarEnviadoById(id);
+  renderRecordatoriosPendientes();
+  agregarAlHistorial(id, msg);
+}
+
+function enviarTodos() {
+  const btns = document.querySelectorAll('#notif-lista-pendientes button.btn.primary[onclick^="enviarRecordatorio"]');
+  if (btns.length === 0) { showToast('Sin recordatorios para enviar'); return; }
+  // Enviar el primero y mostrar los restantes
+  btns[0].click();
+  if (btns.length > 1) showToast(`Enviando recordatorio 1 de ${btns.length}. Continuá con el siguiente.`);
+}
+
+function marcarEnviado(id, el) {
+  marcarEnviadoById(id);
+  if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => renderRecordatoriosPendientes(), 300); }
+}
+
+function marcarEnviadoById(id) {
+  const enviados = JSON.parse(localStorage.getItem('pm_notif_enviados') || '[]');
+  if (!enviados.includes(id)) { enviados.push(id); localStorage.setItem('pm_notif_enviados', JSON.stringify(enviados)); }
+}
+
+function agregarAlHistorial(id, msg) {
+  const hist = JSON.parse(localStorage.getItem('pm_notif_historial') || '[]');
+  hist.unshift({ id, msg: msg.substring(0, 80) + '...', fecha: new Date().toISOString() });
+  localStorage.setItem('pm_notif_historial', JSON.stringify(hist.slice(0, 20)));
+  renderHistorialNotif();
+}
+
+function renderHistorialNotif() {
+  const el = document.getElementById('notif-historial');
+  if (!el) return;
+  const hist = JSON.parse(localStorage.getItem('pm_notif_historial') || '[]');
+  if (hist.length === 0) {
+    el.innerHTML = '<div style="padding:1.5rem;text-align:center;color:var(--ink-soft);font-size:13px">Los recordatorios enviados aparecerán acá.</div>';
+    return;
+  }
+  el.innerHTML = `<div class="card">` + hist.map(h => {
+    const fechaStr = new Date(h.fecha).toLocaleDateString('es-AR', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+    return `<div style="padding:10px 16px;border-bottom:0.5px solid var(--border-soft);font-size:13px">
+      <div style="color:var(--ink-soft);font-size:11px;margin-bottom:3px">📱 Enviado · ${fechaStr}</div>
+      <div style="color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${h.msg}</div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function escanearYEnviarRecordatorios() {
+  navigate('notificaciones');
+  setTimeout(renderRecordatoriosPendientes, 100);
+}
+
+// Templates editables
+const WSP_TPLS_PREVIEW = [
+  (tpls) => tpls[0].replace(/{nombre}/g,'<strong>Paciente</strong>').replace(/{cuando}/g,'mañana').replace(/{hora}/g,'09:30').replace(/{direccion}/g,'el consultorio').replace(/\n/g,'<br>'),
+  (tpls) => tpls[1].replace(/{nombre}/g,'<strong>Paciente</strong>').replace(/\n/g,'<br>'),
+  (tpls) => tpls[2].replace(/{nombre}/g,'<strong>Paciente</strong>').replace(/\n/g,'<br>'),
+];
+
+function setWSPTpl(btn, idx) {
+  _currentTplIdx = idx;
+  btn.parentElement.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  const tpls = getTpls();
+  const editor = document.getElementById('notif-tpl-editor');
+  if (editor) editor.value = tpls[idx];
+  actualizarPreviewTpl();
+}
+
+function actualizarPreviewTpl() {
+  const tpls = getTpls();
+  const val = document.getElementById('notif-tpl-editor')?.value || tpls[_currentTplIdx];
+  const preview = document.getElementById('notif-preview');
+  if (preview) preview.innerHTML = val.replace(/{nombre}/g,'<strong>Paciente</strong>').replace(/{cuando}/g,'mañana').replace(/{hora}/g,'09:30').replace(/{direccion}/g,'el consultorio').replace(/\n/g,'<br>');
+}
+
+function guardarTemplateTpl() {
+  const val = document.getElementById('notif-tpl-editor')?.value;
+  if (!val) return;
+  const tpls = getTpls();
+  tpls[_currentTplIdx] = val;
+  localStorage.setItem('pm_notif_tpls', JSON.stringify(tpls));
+  showToast('✅ Template guardado');
 }
 
 // ══ RECIBO ══
@@ -1961,23 +2196,6 @@ function selectPrice(el, val) {
 }
 
 // ══ NOTIFICACIONES ══
-const WSP_TPLS = [
-  'Hola <strong>Lucía</strong> 👋<br><br>Te recuerdo que mañana <strong>miércoles 1 de abril</strong> tenés sesión a las <strong>09:30 hs</strong>.<br><br>📍 Av. Corrientes 1234, piso 3 of. B<br><br>¿Confirmás tu asistencia?',
-  'Hola <strong>Lucía</strong>, ¿cómo estás?<br><br>Te escribo para recordarte que tenés un saldo pendiente de <strong>$16.000</strong> por 2 sesiones.<br><br>Podés transferir al alias: <strong>psimind.rios</strong> o abonar en el próximo turno.<br><br>¡Muchas gracias! 🙏',
-  'Hola <strong>[nombre del paciente]</strong>! 🌿<br><br>¡Bienvenido/a a nuestro espacio de trabajo! Tu primer turno quedó agendado.<br><br>Cualquier consulta no dudes en escribirme.',
-];
-
-function setWSPTpl(btn, idx) {
-  btn.parentElement.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  const el = document.getElementById('notif-preview');
-  if (el) el.innerHTML = WSP_TPLS[idx];
-}
-
-function toggleChanged(el, name) {
-  showToast((el.checked ? '✅ Activado: ' : '❌ Desactivado: ') + name);
-}
-
 // ══ AGENDA GRID ══
 const AG_HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
 const AG_DAYS = ['Lun','Mar','Mié','Jue','Vie','Sáb'];

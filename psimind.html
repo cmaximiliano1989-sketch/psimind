@@ -1557,6 +1557,34 @@ function switchCobroTab(tab) {
     if (p) p.style.display = t === tab ? 'block' : 'none';
     if (b) b.classList.toggle('active', t === tab);
   });
+  if (tab === 'recibo') {
+    // Inicializar el recibo con los datos guardados
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaEl = document.getElementById('recibo-fecha');
+    if (fechaEl && !fechaEl.value) fechaEl.value = hoy;
+    // Cargar último precio
+    const lastPrecio = localStorage.getItem('pm_precio_sesion');
+    const montoEl = document.getElementById('recibo-monto');
+    if (montoEl && lastPrecio && (!montoEl.value || montoEl.value === '0')) {
+      montoEl.value = lastPrecio;
+    }
+    // Cargar especialidad guardada
+    const espGuardada = localStorage.getItem('pm_especialidad_recibo');
+    const espEl = document.getElementById('recibo-especialidad');
+    if (espEl && espGuardada) espEl.value = espGuardada;
+    // Actualizar nombre del profesional en el recibo
+    const titulo = getTitulo();
+    const n = localStorage.getItem('pm_nombre') || '';
+    const a = localStorage.getItem('pm_apellido') || '';
+    const mat = localStorage.getItem('pm_matricula') || '';
+    const profEl = document.getElementById('recibo-prof-nombre');
+    if (profEl && n) profEl.textContent = (titulo + ' ' + n + ' ' + a).trim();
+    const matEl = document.getElementById('recibo-prev-mat');
+    if (matEl && mat) matEl.textContent = mat;
+    // Renderizar todo el preview
+    updateReciboPreview();
+    updateReciboTotal();
+  }
 }
 
 // ══ CONFIG PANELS ══

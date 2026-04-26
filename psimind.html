@@ -8,6 +8,7 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 const SUPA_URL = 'https://nkeolgutpeudtfypxdha.supabase.co';
 const SUPA_KEY = 'sb_publishable_p2IFgOnvSCEP7L1j5DJnDw_9JalLVNC';
@@ -2098,6 +2099,115 @@ function updateReciboPreview() {
   updateReciboTotal();
 }
 
+function getDatosRecibo() {
+  const titulo = getTitulo();
+  const n = localStorage.getItem('pm_nombre') || '';
+  const a = localStorage.getItem('pm_apellido') || '';
+  const mat = localStorage.getItem('pm_matricula') || '';
+  const esp = localStorage.getItem('pm_especialidad_recibo') || 'Psicología';
+  const profNombre = [titulo, n, a].filter(Boolean).join(' ') || 'Profesional';
+  const pac = document.getElementById('recibo-pac')?.value || '—';
+  const monto = parseInt(document.getElementById('recibo-monto')?.value || localStorage.getItem('pm_precio_sesion') || '0') || 0;
+  const montoFmt = monto > 0 ? '$' + monto.toLocaleString('es-AR') : '$0';
+  const fechaVal = document.getElementById('recibo-fecha')?.value || new Date().toISOString().split('T')[0];
+  const fechaStr = new Date(fechaVal + 'T12:00').toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const nroSesion = document.getElementById('recibo-nro')?.value || '1';
+  const concepto = document.getElementById('recibo-concepto')?.value || ('Sesión psicológica #' + nroSesion);
+  const modalidad = document.getElementById('recibo-modalidad')?.value || 'Presencial · 50 min';
+  const num = String(reciboCounter + 1).padStart(4, '0');
+  return { profNombre, mat, esp, pac, monto, montoFmt, fechaStr, concepto, modalidad, num };
+}
+
+function generarPDFjsPDF(descargar) {
+  // Verificar que jsPDF está disponible
+  const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
+  if (!jsPDFLib) {
+    showToast('⚠️ Error: librería PDF no cargada. Recargá la página.');
+    return Promise.reject('jsPDF not loaded');
+  }
+  const d = getDatosRecibo();
+  const doc = new jsPDFLib({ unit: 'mm', format: 'a5', orientation: 'portrait' });
+  const W = doc.internal.pageSize.getWidth();
+
+  // Header verde
+  doc.setFillColor(74, 124, 111);
+  doc.roundedRect(10, 10, W - 20, 32, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('PsiMind', W / 2, 23, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Recibo de consulta psicologica', W / 2, 30, { align: 'center' });
+  doc.text('N ' + d.num + ' - ' + d.fechaStr, W / 2, 36, { align: 'center' });
+
+  let y = 52;
+  const linea = (label, valor, bold) => {
+    doc.setTextColor(120, 130, 128);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(label, 14, y);
+    doc.setTextColor(26, 46, 37);
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(10);
+    doc.text(String(valor), W - 14, y, { align: 'right' });
+    y += 7;
+  };
+  const titulo = (text) => {
+    doc.setFillColor(240, 247, 244);
+    doc.rect(10, y - 4, W - 20, 7, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(143, 163, 156);
+    doc.text(text, 14, y + 1);
+    y += 8;
+  };
+  const divider = () => {
+    doc.setDrawColor(224, 232, 228);
+    doc.line(14, y, W - 14, y);
+    y += 5;
+  };
+
+  titulo('PROFESIONAL');
+  linea('Nombre', d.profNombre, true);
+  linea('Especialidad', d.esp, false);
+  linea('Matricula', d.mat || '---', false);
+  divider();
+  titulo('PACIENTE');
+  linea('Nombre', d.pac, true);
+  divider();
+  titulo('DETALLE');
+  linea('Concepto', d.concepto, false);
+  linea('Fecha', d.fechaStr, false);
+  linea('Modalidad', d.modalidad, false);
+
+  y += 4;
+  doc.setFillColor(240, 247, 244);
+  doc.roundedRect(10, y, W - 20, 14, 2, 2, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(26, 46, 37);
+  doc.text('Total', 16, y + 9);
+  doc.setFontSize(15);
+  doc.setTextColor(74, 124, 111);
+  doc.text(d.montoFmt, W - 14, y + 9, { align: 'right' });
+
+  y += 22;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(143, 163, 156);
+  doc.text('Gracias por tu confianza.', W / 2, y, { align: 'center' });
+
+  const filename = 'recibo-psimind-' + d.num + '.pdf';
+  if (descargar) {
+    doc.save(filename);
+    return Promise.resolve();
+  } else {
+    const blob = doc.output('blob');
+    return Promise.resolve({ blob, num: d.num, pac: d.pac });
+  }
+}
+
 function construirHTMLRecibo() {
   // Leer datos directamente — nunca del DOM del preview
   const titulo = getTitulo();
@@ -2151,26 +2261,7 @@ function construirHTMLRecibo() {
 async function generarPDFBlob() {
   const pac = document.getElementById('recibo-pac')?.value;
   if (!pac) { showToast('⚠️ Seleccioná un paciente primero'); return null; }
-  const num = String(reciboCounter + 1).padStart(4, '0');
-  const htmlContent = construirHTMLRecibo();
-  const div = document.createElement('div');
-  div.innerHTML = htmlContent;
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:white;';
-  document.body.appendChild(div);
-  const opt = {
-    margin: 8,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-    jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
-  };
-  try {
-    const blob = await html2pdf().set(opt).from(div).outputPdf('blob');
-    document.body.removeChild(div);
-    return { blob, num, pac };
-  } catch(e) {
-    document.body.removeChild(div);
-    return null;
-  }
+  return generarPDFjsPDF(false);
 }
 
 async function subirPDFYObtenerURL(blob, num, pac) {
@@ -2192,27 +2283,7 @@ function descargarPDF() {
   const pac = document.getElementById('recibo-pac')?.value;
   if (!pac) { showToast('⚠️ Seleccioná un paciente primero'); return Promise.reject(); }
   showToast('📄 Generando PDF...');
-  const num = String(reciboCounter + 1).padStart(4, '0');
-  const htmlContent = construirHTMLRecibo();
-  const div = document.createElement('div');
-  div.innerHTML = htmlContent;
-  div.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:white;';
-  document.body.appendChild(div);
-  const filename = 'recibo-psimind-' + num + '-' + pac.replace(/[^a-z0-9]/gi,'-').toLowerCase() + '.pdf';
-  const opt = {
-    margin: 8,
-    filename,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-    jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
-  };
-  return html2pdf().set(opt).from(div).save().then(() => {
-    document.body.removeChild(div);
-    showToast('✅ PDF descargado');
-  }).catch(() => {
-    document.body.removeChild(div);
-    showToast('⚠️ Error al generar PDF');
-  });
+  return generarPDFjsPDF(true).then(() => showToast('✅ PDF descargado')).catch(() => showToast('⚠️ Error al generar PDF'));
 }
 
 async function sendWSPRecibo() {

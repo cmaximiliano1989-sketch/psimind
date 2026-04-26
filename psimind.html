@@ -68,6 +68,10 @@ async function initAuth() {
   document.getElementById('app-wrapper').style.display = 'block';
   document.getElementById('auth-loading').style.display = 'none';
 
+  // Si el recibo ya está visible, inicializarlo con datos frescos
+  const reciboPanel = document.getElementById('cp-recibo');
+  if (reciboPanel && reciboPanel.style.display !== 'none') inicializarRecibo();
+
   // Verificar si ya completó el onboarding (en Supabase user_metadata)
   const onboardingDone = session.user.user_metadata?.onboarding_done === true;
   const localDone = localStorage.getItem('pm_visited') === '1';
@@ -1667,34 +1671,64 @@ function switchCobroTab(tab) {
     if (p) p.style.display = t === tab ? 'block' : 'none';
     if (b) b.classList.toggle('active', t === tab);
   });
-  if (tab === 'recibo') {
-    // Inicializar el recibo con los datos guardados
-    const hoy = new Date().toISOString().split('T')[0];
-    const fechaEl = document.getElementById('recibo-fecha');
-    if (fechaEl && !fechaEl.value) fechaEl.value = hoy;
-    // Cargar último precio
-    const lastPrecio = localStorage.getItem('pm_precio_sesion');
-    const montoEl = document.getElementById('recibo-monto');
-    if (montoEl && lastPrecio && (!montoEl.value || montoEl.value === '0')) {
-      montoEl.value = lastPrecio;
-    }
-    // Cargar especialidad guardada
-    const espGuardada = localStorage.getItem('pm_especialidad_recibo');
-    const espEl = document.getElementById('recibo-especialidad');
-    if (espEl && espGuardada) espEl.value = espGuardada;
-    // Actualizar nombre del profesional en el recibo
-    const titulo = getTitulo();
-    const n = localStorage.getItem('pm_nombre') || '';
-    const a = localStorage.getItem('pm_apellido') || '';
-    const mat = localStorage.getItem('pm_matricula') || '';
-    const profEl = document.getElementById('recibo-prof-nombre');
-    if (profEl && n) profEl.textContent = (titulo + ' ' + n + ' ' + a).trim();
-    const matEl = document.getElementById('recibo-prev-mat');
-    if (matEl && mat) matEl.textContent = mat;
-    // Renderizar todo el preview
-    updateReciboPreview();
-    updateReciboTotal();
-  }
+  if (tab === 'recibo') inicializarRecibo();
+}
+
+function inicializarRecibo() {
+  const hoy = new Date().toISOString().split('T')[0];
+
+  // Fecha
+  const fechaEl = document.getElementById('recibo-fecha');
+  if (fechaEl && !fechaEl.value) fechaEl.value = hoy;
+
+  // Precio — siempre cargar el último guardado si el campo está vacío o en 0
+  const lastPrecio = localStorage.getItem('pm_precio_sesion') || '0';
+  const montoEl = document.getElementById('recibo-monto');
+  if (montoEl && (montoEl.value === '0' || !montoEl.value)) montoEl.value = lastPrecio;
+
+  // Especialidad
+  const espGuardada = localStorage.getItem('pm_especialidad_recibo') || 'Psicología';
+  const espEl = document.getElementById('recibo-especialidad');
+  if (espEl) espEl.value = espGuardada;
+
+  // Nombre profesional — SIEMPRE forzar desde localStorage
+  const titulo = getTitulo();
+  const n = localStorage.getItem('pm_nombre') || '';
+  const a = localStorage.getItem('pm_apellido') || '';
+  const mat = localStorage.getItem('pm_matricula') || '';
+  const profNombre = [titulo, n, a].filter(Boolean).join(' ');
+
+  const profEl = document.getElementById('recibo-prof-nombre');
+  if (profEl) profEl.textContent = profNombre || 'Profesional';
+
+  const matEl = document.getElementById('recibo-prev-mat');
+  if (matEl) matEl.textContent = mat || '—';
+
+  const espPrevEl = document.getElementById('recibo-prev-especialidad');
+  if (espPrevEl) espPrevEl.textContent = espGuardada;
+
+  // Número de recibo
+  const num = String((parseInt(localStorage.getItem('pm_recibo_counter') || '0')) + 1).padStart(4,'0');
+  const numEl = document.getElementById('recibo-num-display');
+  if (numEl) numEl.innerHTML = 'N° ' + num + ' · ' + new Date(hoy+'T12:00').toLocaleDateString('es-AR');
+
+  // Total
+  const raw = parseInt(montoEl?.value || '0') || 0;
+  const fmt = raw > 0 ? '$' + raw.toLocaleString('es-AR') : '$0';
+  const totalEl = document.getElementById('recibo-total-display');
+  if (totalEl) totalEl.textContent = fmt;
+  const prevTotalEl = document.getElementById('recibo-prev-total');
+  if (prevTotalEl) prevTotalEl.textContent = fmt;
+
+  // Fecha en preview
+  const prevFechaEl = document.getElementById('recibo-prev-fecha');
+  if (prevFechaEl) prevFechaEl.textContent = new Date(hoy+'T12:00').toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+
+  // Actualizar select de pacientes
+  updatePacientesSelects();
+
+  // Actualizar preview completo
+  updateReciboPreview();
 }
 
 // ══ CONFIG PANELS ══

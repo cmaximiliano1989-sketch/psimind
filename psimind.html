@@ -61,6 +61,9 @@ async function initAuth() {
     if (configInitials) configInitials.style.display = 'none';
   }
 
+  // Cargar todos los datos desde Supabase
+  await dbCargarTodo();
+
   // Mostrar la app
   document.getElementById('app-wrapper').style.display = 'block';
   document.getElementById('auth-loading').style.display = 'none';
@@ -90,10 +93,117 @@ async function initAuth() {
 
 async function cerrarSesion() {
   await sb.auth.signOut();
-  // NO borrar localStorage — los datos del profesional deben persistir
-  // Solo limpiar las claves de sesión temporales
   sessionStorage.clear();
   window.location.href = 'index.html';
+}
+
+// ══ CAPA DE DATOS SUPABASE ══
+// Todas las operaciones sincronizan con Supabase Y con localStorage (fallback)
+
+async function dbGuardar(tabla, datos) {
+  try {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const row = { ...datos, user_id: uid };
+    const { error } = await sb.from(tabla).upsert(row, { onConflict: 'id' });
+    if (error) console.warn('Supabase upsert error:', tabla, error.message);
+  } catch(e) { console.warn('dbGuardar error:', e); }
+}
+
+async function dbEliminar(tabla, id) {
+  try {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    await sb.from(tabla).delete().eq('id', id).eq('user_id', uid);
+  } catch(e) { console.warn('dbEliminar error:', e); }
+}
+
+async function dbCargarTodo() {
+  try {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const [pacRes, turRes, recRes, deuRes, profRes] = await Promise.all([
+      sb.from('pacientes').select('*').eq('user_id', uid),
+      sb.from('turnos').select('*').eq('user_id', uid),
+      sb.from('recibos').select('*').eq('user_id', uid),
+      sb.from('deudas').select('*').eq('user_id', uid),
+      sb.from('profesionales').select('*').eq('user_id', uid).single()
+    ]);
+    // Sincronizar a localStorage
+    if (pacRes.data?.length) {
+      const pacs = pacRes.data.map(r => ({
+        id: r.id, nombre: r.nombre, apellido: r.apellido,
+        telefono: r.telefono, dni: r.dni, email: r.email,
+        fechaNacimiento: r.fecha_nacimiento, diagnostico: r.diagnostico,
+        obraSocial: r.obra_social, notas: r.notas,
+        nroSesion: r.nro_sesion, notas_sesion: r.notas_sesion || [],
+        createdAt: r.created_at
+      }));
+      localStorage.setItem('pm_pacientes', JSON.stringify(pacs));
+    }
+    if (turRes.data?.length) {
+      const turns = turRes.data.map(r => ({
+        id: r.id, paciente: r.paciente, fecha: r.fecha,
+        hora: r.hora, duracion: r.duracion,
+        telPaciente: r.tel_paciente, cobrado: r.cobrado,
+        createdAt: r.created_at
+      }));
+      localStorage.setItem('pm_turnos', JSON.stringify(turns));
+    }
+    if (recRes.data?.length) {
+      const recs = recRes.data.map(r => ({
+        id: r.id, num: r.num, paciente: r.paciente, fecha: r.fecha,
+        nroSesion: r.nro_sesion, concepto: r.concepto,
+        monto: r.monto, montoFmt: r.monto_fmt, estado: r.estado,
+        createdAt: r.created_at
+      }));
+      localStorage.setItem('pm_recibos', JSON.stringify(recs));
+    }
+    if (deuRes.data?.length) {
+      const deus = deuRes.data.map(r => ({
+        id: r.id, paciente: r.paciente, monto: r.monto,
+        montoFmt: r.monto_fmt, sesiones: r.sesiones,
+        motivo: r.motivo, fecha: r.fecha, estado: r.estado,
+        telPaciente: r.tel_paciente, createdAt: r.created_at
+      }));
+      localStorage.setItem('pm_deudas', JSON.stringify(deus));
+    }
+    if (profRes.data) {
+      const p = profRes.data;
+      if (p.nombre) localStorage.setItem('pm_nombre', p.nombre);
+      if (p.apellido) localStorage.setItem('pm_apellido', p.apellido);
+      if (p.genero) localStorage.setItem('pm_genero', p.genero);
+      if (p.matricula) localStorage.setItem('pm_matricula', p.matricula);
+      if (p.email_prof) localStorage.setItem('pm_email_prof', p.email_prof);
+      if (p.telefono) localStorage.setItem('pm_tel_prof', p.telefono);
+      if (p.bio) localStorage.setItem('pm_bio', p.bio);
+      if (p.wsp_numero) { localStorage.setItem('pm_wsp', p.wsp_numero); }
+      if (p.precio_sesion) localStorage.setItem('pm_precio_sesion', p.precio_sesion);
+      if (p.especialidad_recibo) localStorage.setItem('pm_especialidad_recibo', p.especialidad_recibo);
+    }
+  } catch(e) { console.warn('dbCargarTodo error:', e); }
+}
+
+async function dbGuardarProfesional() {
+  try {
+    const uid = currentUser?.id;
+    if (!uid) return;
+    const datos = {
+      user_id: uid,
+      nombre: localStorage.getItem('pm_nombre') || '',
+      apellido: localStorage.getItem('pm_apellido') || '',
+      genero: localStorage.getItem('pm_genero') || 'dra',
+      matricula: localStorage.getItem('pm_matricula') || '',
+      email_prof: localStorage.getItem('pm_email_prof') || '',
+      telefono: localStorage.getItem('pm_tel_prof') || '',
+      bio: localStorage.getItem('pm_bio') || '',
+      wsp_numero: localStorage.getItem('pm_wsp') || '',
+      precio_sesion: parseInt(localStorage.getItem('pm_precio_sesion') || '0'),
+      especialidad_recibo: localStorage.getItem('pm_especialidad_recibo') || 'Psicología',
+      updated_at: new Date().toISOString()
+    };
+    await sb.from('profesionales').upsert(datos, { onConflict: 'user_id' });
+  } catch(e) { console.warn('dbGuardarProfesional error:', e); }
 }
 </script>
 <style>
@@ -2067,7 +2177,14 @@ function emitirRecibo() {
   const recibos = JSON.parse(localStorage.getItem('pm_recibos') || '[]');
   recibos.unshift(recibo);
   localStorage.setItem('pm_recibos', JSON.stringify(recibos));
-
+  // Sincronizar a Supabase
+  dbGuardar('recibos', {
+    id: recibo.id, num: recibo.num, paciente: recibo.paciente,
+    fecha: recibo.fecha, nro_sesion: recibo.nroSesion,
+    concepto: recibo.concepto, monto: recibo.monto,
+    monto_fmt: recibo.montoFmt, estado: 'pagado',
+    created_at: recibo.createdAt
+  });
   // Actualizar métricas y historial
   renderHistorial();
   actualizarMetricasCobros();
@@ -2113,6 +2230,9 @@ function saveConfig() {
   if (email) localStorage.setItem('pm_email_prof', email);
   if (tel) localStorage.setItem('pm_tel_prof', tel);
   if (bio) localStorage.setItem('pm_bio', bio);
+  // Sincronizar número de WhatsApp si cambió
+  const wsp = localStorage.getItem('pm_wsp') || '';
+  if (wsp) dbGuardarProfesional();
 }
 
 function loadConfig() {
@@ -2148,8 +2268,15 @@ function guardarTurno() {
   // Buscar tel del paciente
   const lista = getPacientes();
   const pacObj = lista.find(p => (p.nombre + ' ' + p.apellido) === pac);
-  turnos.push({ id: 't_' + Date.now(), paciente: pac, fecha, hora: hora || '09:00', duracion: '50 min', telPaciente: pacObj?.telefono || '', createdAt: new Date().toISOString() });
+  const nuevoTurno = { id: 't_' + Date.now(), paciente: pac, fecha, hora: hora || '09:00', duracion: '50 min', telPaciente: pacObj?.telefono || '', createdAt: new Date().toISOString() };
+  turnos.push(nuevoTurno);
   localStorage.setItem('pm_turnos', JSON.stringify(turnos));
+  // Sincronizar a Supabase
+  dbGuardar('turnos', {
+    id: nuevoTurno.id, paciente: pac, fecha,
+    hora: hora || '09:00', duracion: '50 min',
+    tel_paciente: pacObj?.telefono || ''
+  });
   closeModal('modal-turno');
   showToast('✅ Turno guardado: ' + pac + ' — ' + hora);
   buildAgenda();
@@ -2385,6 +2512,7 @@ function eliminarTurno(id) {
   let turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
   turnos = turnos.filter(t => t.id !== id);
   localStorage.setItem('pm_turnos', JSON.stringify(turnos));
+  dbEliminar('turnos', id);
   buildAgenda();
   showToast('Turno eliminado');
 }
@@ -2437,6 +2565,14 @@ function finalizarSesion(pago) {
     // Marcar turno como cobrado
     turnos[idx].cobrado = true;
     localStorage.setItem('pm_turnos', JSON.stringify(turnos));
+    // Supabase: actualizar turno y guardar recibo
+    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, cobrado: true });
+    dbGuardar('recibos', {
+      id: recibo.id, num: recibo.num, paciente: recibo.paciente,
+      fecha: recibo.fecha, monto: recibo.monto, monto_fmt: recibo.montoFmt,
+      concepto: 'Sesión psicológica', estado: 'pagado',
+      created_at: recibo.createdAt
+    });
     renderHistorial();
     actualizarMetricasCobros();
     actualizarDashboard();
@@ -2463,6 +2599,14 @@ function finalizarSesion(pago) {
     // Marcar turno como no cobrado
     turnos[idx].cobrado = false;
     localStorage.setItem('pm_turnos', JSON.stringify(turnos));
+    // Supabase: actualizar turno y guardar deuda
+    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, cobrado: false });
+    dbGuardar('deudas', {
+      id: deuda.id, paciente: deuda.paciente, monto: deuda.monto,
+      monto_fmt: deuda.montoFmt, sesiones: 1,
+      motivo: deuda.motivo, fecha: deuda.fecha, estado: 'deuda',
+      created_at: deuda.createdAt
+    });
     renderDeudas();
     renderHistorial();
     actualizarMetricasCobros();
@@ -2909,6 +3053,15 @@ function guardarNuevoPaciente() {
   const lista = getPacientes();
   lista.unshift(nuevoPac);
   savePacientes(lista);
+  // Sincronizar a Supabase
+  dbGuardar('pacientes', {
+    id: nuevoPac.id, nombre: nuevoPac.nombre, apellido: nuevoPac.apellido,
+    telefono: nuevoPac.telefono, dni: nuevoPac.dni, email: nuevoPac.email,
+    fecha_nacimiento: nuevoPac.fechaNacimiento || null,
+    diagnostico: nuevoPac.diagnostico, obra_social: nuevoPac.obraSocial,
+    notas: nuevoPac.notas, nro_sesion: 0, notas_sesion: [],
+    created_at: nuevoPac.createdAt
+  });
   renderPacientes();
 
   // Limpiar modal
@@ -2976,8 +3129,10 @@ async function guardarPerfil() {
         prof_matricula: m
       }
     });
+    await dbGuardarProfesional();
     showToast('✅ Perfil guardado en todos tus dispositivos');
   } catch(e) {
+    await dbGuardarProfesional();
     showToast('✅ Perfil guardado localmente');
   }
 }
@@ -3075,6 +3230,13 @@ function guardarDeuda() {
   const deudas = JSON.parse(localStorage.getItem('pm_deudas') || '[]');
   deudas.unshift(deuda);
   localStorage.setItem('pm_deudas', JSON.stringify(deudas));
+  // Sincronizar a Supabase
+  dbGuardar('deudas', {
+    id: deuda.id, paciente: deuda.paciente, monto: deuda.monto,
+    monto_fmt: deuda.montoFmt, sesiones: deuda.sesiones,
+    motivo: deuda.motivo, fecha: deuda.fecha, estado: 'deuda',
+    tel_paciente: '', created_at: deuda.createdAt
+  });
   closeModal('modal-cargar-deuda');
   renderDeudas();
   renderHistorial();
@@ -3095,6 +3257,15 @@ function marcarDeudaPagada(id) {
   localStorage.setItem('pm_recibo_counter', reciboCounter);
   recibos.unshift({...deuda, id: 'r_'+Date.now(), num: String(reciboCounter).padStart(4,'0'), estado: 'pagado', concepto: deuda.motivo, nroSesion: deuda.sesiones});
   localStorage.setItem('pm_recibos', JSON.stringify(recibos));
+  // Sincronizar a Supabase
+  dbEliminar('deudas', id);
+  const nuevoRec = recibos[0];
+  if (nuevoRec) dbGuardar('recibos', {
+    id: nuevoRec.id, num: nuevoRec.num, paciente: nuevoRec.paciente,
+    monto: nuevoRec.monto, monto_fmt: nuevoRec.montoFmt,
+    concepto: nuevoRec.concepto, estado: 'pagado',
+    created_at: nuevoRec.createdAt
+  });
   renderDeudas();
   renderHistorial();
   actualizarMetricasCobros();
@@ -3474,6 +3645,16 @@ function guardarEdicionPaciente() {
   };
   savePacientes(lista);
   _pacienteActivo = lista[idx];
+  // Sincronizar a Supabase
+  const p = lista[idx];
+  dbGuardar('pacientes', {
+    id: p.id, nombre: p.nombre, apellido: p.apellido,
+    telefono: p.telefono, dni: p.dni, email: p.email,
+    fecha_nacimiento: p.fechaNacimiento || null,
+    diagnostico: p.diagnostico, obra_social: p.obraSocial,
+    notas: p.notas, nro_sesion: p.nroSesion,
+    notas_sesion: p.notas_sesion || []
+  });
   // Refrescar vista
   openPatient(_pacienteActivo.id);
   renderPacientes();
@@ -3500,7 +3681,12 @@ function guardarNotaSesion() {
   lista[idx].nroSesion = Math.max(lista[idx].nroSesion || 0, nro);
   savePacientes(lista);
   _pacienteActivo = lista[idx];
-
+  // Sincronizar notas a Supabase
+  dbGuardar('pacientes', {
+    id: lista[idx].id, nombre: lista[idx].nombre, apellido: lista[idx].apellido,
+    nro_sesion: lista[idx].nroSesion,
+    notas_sesion: lista[idx].notas_sesion || []
+  });
   // Refrescar lista de notas en la ficha
   renderNotasSesion(lista[idx].notas_sesion);
   document.getElementById('pd-sesiones').textContent = lista[idx].nroSesion;

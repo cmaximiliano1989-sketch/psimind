@@ -1483,6 +1483,14 @@ document.addEventListener('DOMContentLoaded', () => {
   if (fechaInput) { fechaInput.value = hoy; updateReciboPreview(); }
   const turnoFecha = document.getElementById('turno-fecha');
   if (turnoFecha) turnoFecha.value = hoy;
+  // Precargar especialidad guardada
+  const espGuardadaInit = localStorage.getItem('pm_especialidad_recibo');
+  const espInputInit = document.getElementById('recibo-especialidad');
+  if (espInputInit && espGuardadaInit) espInputInit.value = espGuardadaInit;
+  // Precargar último precio usado
+  const lastPrecio = localStorage.getItem('pm_precio_sesion') || '';
+  const montoInput = document.getElementById('recibo-monto');
+  if (montoInput && lastPrecio) { montoInput.value = lastPrecio; updateReciboTotal(); }
 
   // Cargar configuración del perfil
   loadConfig();
@@ -1852,9 +1860,11 @@ let reciboCounter = parseInt(localStorage.getItem('pm_recibo_counter') || '0');
 
 function updateReciboTotal() {
   const raw = parseInt(document.getElementById('recibo-monto')?.value) || 0;
-  const fmt = '$' + raw.toLocaleString('es-AR');
+  const fmt = raw > 0 ? '$' + raw.toLocaleString('es-AR') : '$0';
   if (document.getElementById('recibo-total-display')) document.getElementById('recibo-total-display').textContent = fmt;
   if (document.getElementById('recibo-prev-total')) document.getElementById('recibo-prev-total').textContent = fmt;
+  // Recordar precio para próxima vez
+  if (raw > 0) localStorage.setItem('pm_precio_sesion', raw);
 }
 
 function updateReciboPreview() {
@@ -1886,8 +1896,13 @@ function updateReciboPreview() {
   const conceptoFinal = conceptoExtra || ('Sesión psicológica #' + nro);
   if (document.getElementById('recibo-prev-concepto')) document.getElementById('recibo-prev-concepto').textContent = conceptoFinal;
   // Especialidad
-  const esp = document.getElementById('recibo-especialidad')?.value || localStorage.getItem('pm_especialidad') || 'Psicología';
+  const espEl = document.getElementById('recibo-especialidad');
+  const espGuardada = localStorage.getItem('pm_especialidad_recibo');
+  if (espEl && espGuardada) espEl.value = espGuardada;
+  const esp = espEl?.value || espGuardada || 'Psicología';
   if (document.getElementById('recibo-prev-especialidad')) document.getElementById('recibo-prev-especialidad').textContent = esp;
+  // Guardar selección de especialidad
+  if (espEl) espEl.onchange = () => { localStorage.setItem('pm_especialidad_recibo', espEl.value); updateReciboPreview(); };
 
   // Total
   updateReciboTotal();

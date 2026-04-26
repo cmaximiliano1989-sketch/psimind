@@ -2098,25 +2098,77 @@ function updateReciboPreview() {
   updateReciboTotal();
 }
 
+function construirHTMLRecibo() {
+  // Leer datos directamente — nunca del DOM del preview
+  const titulo = getTitulo();
+  const n = localStorage.getItem('pm_nombre') || '';
+  const a = localStorage.getItem('pm_apellido') || '';
+  const mat = localStorage.getItem('pm_matricula') || '';
+  const esp = localStorage.getItem('pm_especialidad_recibo') || 'Psicología';
+  const profNombre = [titulo, n, a].filter(Boolean).join(' ') || 'Profesional';
+  const pac = document.getElementById('recibo-pac')?.value || '—';
+  const monto = parseInt(document.getElementById('recibo-monto')?.value || localStorage.getItem('pm_precio_sesion') || '0') || 0;
+  const montoFmt = monto > 0 ? '$' + monto.toLocaleString('es-AR') : '$0';
+  const fechaVal = document.getElementById('recibo-fecha')?.value || new Date().toISOString().split('T')[0];
+  const fechaStr = new Date(fechaVal + 'T12:00').toLocaleDateString('es-AR', {day:'2-digit',month:'2-digit',year:'numeric'});
+  const nroSesion = document.getElementById('recibo-nro')?.value || '1';
+  const concepto = document.getElementById('recibo-concepto')?.value || ('Sesión psicológica #' + nroSesion);
+  const modalidad = document.getElementById('recibo-modalidad')?.value || 'Presencial · 50 min';
+  const num = String(reciboCounter + 1).padStart(4, '0');
+
+  return `<div style="font-family:Arial,sans-serif;max-width:400px;margin:0 auto;background:white">
+    <div style="background:#4a7c6f;color:white;padding:28px 24px;text-align:center;border-radius:12px 12px 0 0">
+      <div style="font-size:22px;font-weight:700;letter-spacing:1px">PsiMind</div>
+      <div style="font-size:12px;opacity:0.85;margin-top:4px">Recibo de consulta psicológica</div>
+      <div style="font-size:11px;opacity:0.7;margin-top:6px">N° ${num} · ${fechaStr}</div>
+    </div>
+    <div style="padding:20px 24px;border:1px solid #e0e8e4;border-top:none;border-radius:0 0 12px 12px">
+      <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
+        <div style="font-size:10px;color:#8fa39b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Profesional</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#666">Nombre</span><span style="font-weight:600">${profNombre}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#666">Especialidad</span><span>${esp}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#666">Matrícula</span><span>${mat || '—'}</span></div>
+      </div>
+      <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #eee">
+        <div style="font-size:10px;color:#8fa39b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Paciente</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#666">Nombre</span><span style="font-weight:600">${pac}</span></div>
+      </div>
+      <div style="margin-bottom:20px">
+        <div style="font-size:10px;color:#8fa39b;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Detalle</div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#666">Concepto</span><span>${concepto}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px"><span style="color:#666">Fecha</span><span>${fechaStr}</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span style="color:#666">Modalidad</span><span>${modalidad}</span></div>
+      </div>
+      <div style="background:#f0f7f4;border-radius:8px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:14px;font-weight:600;color:#1a2e25">Total</span>
+        <span style="font-size:22px;font-weight:700;color:#4a7c6f">${montoFmt}</span>
+      </div>
+      <div style="text-align:center;font-size:11px;color:#8fa39b;margin-top:16px">Gracias por tu confianza.</div>
+    </div>
+  </div>`;
+}
+
 async function generarPDFBlob() {
   const pac = document.getElementById('recibo-pac')?.value;
   if (!pac) { showToast('⚠️ Seleccioná un paciente primero'); return null; }
-  const num = String(reciboCounter || 1).padStart(4, '0');
-  const element = document.getElementById('recibo-preview-card');
-  const btnRow = element.querySelector('.send-btn-row');
-  if (btnRow) btnRow.style.display = 'none';
+  const num = String(reciboCounter + 1).padStart(4, '0');
+  const htmlContent = construirHTMLRecibo();
+  const div = document.createElement('div');
+  div.innerHTML = htmlContent;
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:white;';
+  document.body.appendChild(div);
   const opt = {
-    margin: 0,
+    margin: 8,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
     jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
   };
   try {
-    const blob = await html2pdf().set(opt).from(element).outputPdf('blob');
-    if (btnRow) btnRow.style.display = '';
+    const blob = await html2pdf().set(opt).from(div).outputPdf('blob');
+    document.body.removeChild(div);
     return { blob, num, pac };
   } catch(e) {
-    if (btnRow) btnRow.style.display = '';
+    document.body.removeChild(div);
     return null;
   }
 }
@@ -2140,24 +2192,26 @@ function descargarPDF() {
   const pac = document.getElementById('recibo-pac')?.value;
   if (!pac) { showToast('⚠️ Seleccioná un paciente primero'); return Promise.reject(); }
   showToast('📄 Generando PDF...');
-  const num = String(reciboCounter || 1).padStart(4, '0');
-  const element = document.getElementById('recibo-preview-card');
-  const btnRow = element.querySelector('.send-btn-row');
-  if (btnRow) btnRow.style.display = 'none';
-  const filename = 'recibo-psimind-' + num + '-' + pac.replace(/\s+/g,'-').toLowerCase() + '.pdf';
+  const num = String(reciboCounter + 1).padStart(4, '0');
+  const htmlContent = construirHTMLRecibo();
+  const div = document.createElement('div');
+  div.innerHTML = htmlContent;
+  div.style.cssText = 'position:fixed;left:-9999px;top:0;width:420px;background:white;';
+  document.body.appendChild(div);
+  const filename = 'recibo-psimind-' + num + '-' + pac.replace(/[^a-z0-9]/gi,'-').toLowerCase() + '.pdf';
   const opt = {
-    margin: 0,
+    margin: 8,
     filename,
     image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
     jsPDF: { unit: 'mm', format: 'a5', orientation: 'portrait' }
   };
-  return html2pdf().set(opt).from(element).save().then(() => {
-    if (btnRow) btnRow.style.display = '';
+  return html2pdf().set(opt).from(div).save().then(() => {
+    document.body.removeChild(div);
     showToast('✅ PDF descargado');
   }).catch(() => {
-    if (btnRow) btnRow.style.display = '';
-    showToast('⚠️ Error al generar PDF. Intentá de nuevo.');
+    document.body.removeChild(div);
+    showToast('⚠️ Error al generar PDF');
   });
 }
 

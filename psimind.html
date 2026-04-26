@@ -2031,15 +2031,33 @@ function guardarTemplateTpl() {
 let reciboCounter = parseInt(localStorage.getItem('pm_recibo_counter') || '0');
 
 function updateReciboTotal() {
-  const raw = parseInt(document.getElementById('recibo-monto')?.value) || 0;
+  const montoEl = document.getElementById('recibo-monto');
+  // Si el campo está vacío o en 0, intentar cargar el último precio guardado
+  if (montoEl && (!montoEl.value || montoEl.value === '0')) {
+    const saved = localStorage.getItem('pm_precio_sesion');
+    if (saved && saved !== '0') montoEl.value = saved;
+  }
+  const raw = parseInt(montoEl?.value || '0') || 0;
   const fmt = raw > 0 ? '$' + raw.toLocaleString('es-AR') : '$0';
-  if (document.getElementById('recibo-total-display')) document.getElementById('recibo-total-display').textContent = fmt;
-  if (document.getElementById('recibo-prev-total')) document.getElementById('recibo-prev-total').textContent = fmt;
-  // Recordar precio para próxima vez
+  const displayEl = document.getElementById('recibo-total-display');
+  const prevEl = document.getElementById('recibo-prev-total');
+  if (displayEl) displayEl.textContent = fmt;
+  if (prevEl) prevEl.textContent = fmt;
   if (raw > 0) localStorage.setItem('pm_precio_sesion', raw);
 }
 
 function updateReciboPreview() {
+  // ── Profesional — siempre desde localStorage ──
+  const titulo = getTitulo();
+  const n = localStorage.getItem('pm_nombre') || '';
+  const a = localStorage.getItem('pm_apellido') || '';
+  const mat = localStorage.getItem('pm_matricula') || '';
+  const profNombre = [titulo, n, a].filter(Boolean).join(' ');
+  const profEl = document.getElementById('recibo-prof-nombre');
+  if (profEl) profEl.textContent = profNombre || 'Completá tu perfil';
+  const matEl = document.getElementById('recibo-prev-mat');
+  if (matEl) matEl.textContent = mat || '—';
+
   // Paciente
   const sel = document.getElementById('recibo-pac');
   const pac = sel?.value || '—';
@@ -2067,14 +2085,14 @@ function updateReciboPreview() {
   const conceptoExtra = document.getElementById('recibo-concepto')?.value;
   const conceptoFinal = conceptoExtra || ('Sesión psicológica #' + nro);
   if (document.getElementById('recibo-prev-concepto')) document.getElementById('recibo-prev-concepto').textContent = conceptoFinal;
+
   // Especialidad
+  const espGuardada = localStorage.getItem('pm_especialidad_recibo') || 'Psicología';
   const espEl = document.getElementById('recibo-especialidad');
-  const espGuardada = localStorage.getItem('pm_especialidad_recibo');
-  if (espEl && espGuardada) espEl.value = espGuardada;
-  const esp = espEl?.value || espGuardada || 'Psicología';
+  if (espEl && !espEl.dataset.loaded) { espEl.value = espGuardada; espEl.dataset.loaded = '1'; }
+  const esp = espEl?.value || espGuardada;
   if (document.getElementById('recibo-prev-especialidad')) document.getElementById('recibo-prev-especialidad').textContent = esp;
-  // Guardar selección de especialidad
-  if (espEl) espEl.onchange = () => { localStorage.setItem('pm_especialidad_recibo', espEl.value); updateReciboPreview(); };
+  if (espEl && !espEl.onchange) espEl.onchange = () => { localStorage.setItem('pm_especialidad_recibo', espEl.value); updateReciboPreview(); };
 
   // Total
   updateReciboTotal();

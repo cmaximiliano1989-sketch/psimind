@@ -215,7 +215,7 @@ async function dbGuardarProfesional() {
 *{box-sizing:border-box;margin:0;padding:0;}
 html{overflow-x:hidden;}
 body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;overflow-x:hidden;width:100%;}
-#app-wrapper{max-width:100vw;overflow-x:hidden;}
+#app-wrapper{max-width:100vw;}
 :root{
   --sage:#4a7c6f;--sage-light:#e8f2ef;--sage-mid:#a8cec6;
   --terra:#b5603a;--terra-light:#f5ece6;
@@ -1695,14 +1695,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
 </div>
 
 <!-- ══ MOBILE NAV ══ -->
-<div class="mobile-nav">
-  <div class="mobile-nav-item active" id="mn-dashboard" onclick="navigate('dashboard')"><div class="mn-icon">🏠</div><div class="mn-label">Inicio</div></div>
-  <div class="mobile-nav-item" id="mn-agenda" onclick="navigate('agenda')"><div class="mn-icon">📅</div><div class="mn-label">Agenda</div></div>
-  <div class="mobile-nav-item" id="mn-pacientes" onclick="navigate('pacientes')"><div class="mn-icon">👥</div><div class="mn-label">Pacientes</div></div>
-  <div class="mobile-nav-item" id="mn-cobros" onclick="navigate('cobros')"><div class="mn-icon">💰</div><div class="mn-label">Cobros</div></div>
-  <div class="mobile-nav-item" id="mn-informes" onclick="navigate('informes')"><div class="mn-icon">📋</div><div class="mn-label">Informes</div></div>
-  <div class="mobile-nav-item" id="mn-configuracion" onclick="navigate('configuracion')"><div class="mn-icon">⚙️</div><div class="mn-label">Config</div></div>
-</div>
+
 
 <!-- ══ TOAST ══ -->
 <div class="toast" id="toast"></div>
@@ -4265,6 +4258,16 @@ function showToast(msg) {
 </script>
 
 </div> <!-- /app-wrapper -->
+
+<!-- ══ MOBILE NAV — fuera del app-wrapper para que position:fixed funcione ══ -->
+<div class="mobile-nav" id="mobile-nav-bar">
+  <div class="mobile-nav-item active" id="mn-dashboard" onclick="navigate('dashboard')"><div class="mn-icon">🏠</div><div class="mn-label">Inicio</div></div>
+  <div class="mobile-nav-item" id="mn-agenda" onclick="navigate('agenda')"><div class="mn-icon">📅</div><div class="mn-label">Agenda</div></div>
+  <div class="mobile-nav-item" id="mn-pacientes" onclick="navigate('pacientes')"><div class="mn-icon">👥</div><div class="mn-label">Pacientes</div></div>
+  <div class="mobile-nav-item" id="mn-cobros" onclick="navigate('cobros')"><div class="mn-icon">💰</div><div class="mn-label">Cobros</div></div>
+  <div class="mobile-nav-item" id="mn-informes" onclick="navigate('informes')"><div class="mn-icon">📋</div><div class="mn-label">Informes</div></div>
+  <div class="mobile-nav-item" id="mn-configuracion" onclick="navigate('configuracion')"><div class="mn-icon">⚙️</div><div class="mn-label">Config</div></div>
+</div>
 
 <!-- ══ MODAL TRIAL VENCIDO ══ -->
 <div id="trial-expired-modal" style="

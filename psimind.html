@@ -547,17 +547,40 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
   .sidenav{display:flex;overflow-x:auto;border-right:none;border-bottom:1px solid var(--border);padding:0.5rem;}
   .sidenav-section{display:flex;gap:4px;margin-bottom:0;padding:0;}
   .sidenav-label{display:none;}
-  .sidenav-item{white-space:nowrap;}
+  .sidenav-item{white-space:nowrap;font-size:12px;padding:6px 10px;}
   .mobile-nav{display:flex;}
+  .patient-hero{flex-direction:column;gap:1rem;padding:1.2rem;}
+  .patient-hero>div:last-child{display:flex;gap:8px;width:100%;}
+  .patient-hero>div:last-child button{flex:1;}
+  .main{padding-bottom:80px;}
+  .topbar{padding:0 1rem;}
+  .trial-banner{padding:8px 1rem;font-size:11px;}
 }
 @media(max-width:600px){
-  .main{padding:1rem;}
+  .main{padding:0.75rem;padding-bottom:80px;}
   .field-row{grid-template-columns:1fr;}
-  .cobro-row{grid-template-columns:1fr 1fr;}
+  .cobro-row{grid-template-columns:1fr auto auto;}
   .cobro-row .col-val{display:none;}
   .cols-half{grid-template-columns:1fr;}
   .tabla-row>:nth-child(4),.tabla-row>:nth-child(5){display:none;}
   .tabla-row{grid-template-columns:1fr 1fr 1fr;}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .metric{padding:12px 14px;}
+  .metric-value{font-size:20px!important;}
+  .section-h1{font-size:20px;}
+  .card{border-radius:12px;}
+  .agenda-layout{height:calc(100vh - 130px);}
+  .bars-wrap{gap:4px;}
+  .bar-col{min-width:28px;}
+  .recibo-wrap{gap:1rem;}
+  .recibo-preview{display:none;}
+  .pac-list-item{padding:10px 1rem;}
+  .pat-name{font-size:24px;}
+  .modal{max-height:90vh;overflow-y:auto;margin:1rem;}
+  .modal-overlay{align-items:flex-end;}
+  .modal{border-radius:20px 20px 0 0;}
+  .preview-footer .send-btn-row{flex-direction:column;}
+  .send-btn{width:100%;}
 }
 /* Mobile bottom nav */
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);z-index:40;}
@@ -1012,6 +1035,66 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
     </div>
   </div>
 </div>
+</div>
+
+<!-- ══ INFORMES ══ -->
+<div class="section" id="section-informes">
+<div class="main">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px">
+    <div class="section-h1" style="margin-bottom:0">Informes <em>clínicos</em></div>
+    <button class="btn primary" onclick="openModal('modal-nuevo-informe')">+ Nuevo informe</button>
+  </div>
+
+  <!-- Lista de informes guardados -->
+  <div id="informes-lista">
+    <div class="card">
+      <div style="padding:2.5rem;text-align:center;color:var(--ink-soft)">
+        <div style="font-size:36px;margin-bottom:10px">📋</div>
+        <div style="font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px">Sin informes creados</div>
+        <div style="font-size:13px;font-weight:300">Creá un informe clínico para entregárselo a tu paciente en PDF</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ MODAL NUEVO INFORME ══ -->
+<div class="modal-overlay" id="modal-nuevo-informe" onclick="closeModalOuter(event,'modal-nuevo-informe')" style="z-index:600">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-title">Nuevo informe clínico</div>
+    <div class="field-row">
+      <div class="field"><label>Paciente</label><select id="inf-pac"><option value="">— Seleccioná —</option></select></div>
+      <div class="field"><label>Tipo de informe</label>
+        <select id="inf-tipo">
+          <option value="evaluacion">Evaluación psicológica</option>
+          <option value="seguimiento">Informe de seguimiento</option>
+          <option value="alta">Informe de alta</option>
+          <option value="derivacion">Derivación</option>
+          <option value="laboral">Informe laboral</option>
+          <option value="pericial">Informe pericial</option>
+          <option value="libre">Informe libre</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Fecha del informe</label><input type="date" id="inf-fecha"></div>
+    <div class="field"><label>Destinatario (opcional)</label><input type="text" id="inf-destinatario" placeholder="Ej: A quien corresponda / Dr. García / Empresa XYZ"></div>
+    <div class="field"><label>Motivo de consulta</label><textarea id="inf-motivo" style="min-height:60px" placeholder="Breve descripción del motivo de consulta..."></textarea></div>
+    <div class="field"><label>Evaluación / desarrollo</label><textarea id="inf-evaluacion" style="min-height:100px" placeholder="Descripción de la evaluación realizada, técnicas utilizadas, observaciones..."></textarea></div>
+    <div class="field"><label>Conclusiones / diagnóstico</label><textarea id="inf-conclusiones" style="min-height:80px" placeholder="Diagnóstico presuntivo, impresión clínica, conclusiones..."></textarea></div>
+    <div class="field"><label>Recomendaciones</label><textarea id="inf-recomendaciones" style="min-height:60px" placeholder="Indicaciones, continuidad del tratamiento, derivaciones sugeridas..."></textarea></div>
+    <div class="field"><label>Carácter del informe</label>
+      <select id="inf-caracter">
+        <option value="confidencial">Confidencial</option>
+        <option value="reservado">Reservado</option>
+        <option value="publico">Sin clasificación</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeModal('modal-nuevo-informe')">Cancelar</button>
+      <button class="modal-btn" onclick="previewInforme()">👁 Vista previa</button>
+      <button class="modal-btn primary" onclick="generarYGuardarInforme()">📄 Generar PDF</button>
+    </div>
+  </div>
 </div>
 
 <!-- ══ NOTIFICACIONES ══ -->
@@ -1553,6 +1636,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
   <div class="mobile-nav-item" id="mn-agenda" onclick="navigate('agenda')"><div class="mn-icon">📅</div><div class="mn-label">Agenda</div></div>
   <div class="mobile-nav-item" id="mn-pacientes" onclick="navigate('pacientes')"><div class="mn-icon">👥</div><div class="mn-label">Pacientes</div></div>
   <div class="mobile-nav-item" id="mn-cobros" onclick="navigate('cobros')"><div class="mn-icon">💰</div><div class="mn-label">Cobros</div></div>
+  <div class="mobile-nav-item" id="mn-informes" onclick="navigate('informes')"><div class="mn-icon">📋</div><div class="mn-label">Informes</div></div>
   <div class="mobile-nav-item" id="mn-configuracion" onclick="navigate('configuracion')"><div class="mn-icon">⚙️</div><div class="mn-label">Config</div></div>
 </div>
 
@@ -1835,6 +1919,201 @@ function updateWSPStatus() {
 
 // ══ SISTEMA DE NOTIFICACIONES INTELIGENTE ══
 
+// ══ MÓDULO DE INFORMES CLÍNICOS ══
+
+function getDatosInforme() {
+  const titulo = getTitulo();
+  const n = localStorage.getItem('pm_nombre') || '';
+  const a = localStorage.getItem('pm_apellido') || '';
+  const mat = localStorage.getItem('pm_matricula') || '';
+  const esp = localStorage.getItem('pm_especialidad_recibo') || 'Psicología';
+  const tipoEl = document.getElementById('inf-tipo');
+  return {
+    profNombre: [titulo, n, a].filter(Boolean).join(' ') || 'Profesional',
+    mat, esp,
+    pac: document.getElementById('inf-pac')?.value || '—',
+    tipo: tipoEl?.options[tipoEl?.selectedIndex]?.text || 'Informe clínico',
+    fecha: document.getElementById('inf-fecha')?.value || new Date().toISOString().split('T')[0],
+    destinatario: document.getElementById('inf-destinatario')?.value?.trim() || 'A quien corresponda',
+    motivo: document.getElementById('inf-motivo')?.value?.trim() || '',
+    evaluacion: document.getElementById('inf-evaluacion')?.value?.trim() || '',
+    conclusiones: document.getElementById('inf-conclusiones')?.value?.trim() || '',
+    recomendaciones: document.getElementById('inf-recomendaciones')?.value?.trim() || '',
+    caracter: document.getElementById('inf-caracter')?.value || 'confidencial',
+  };
+}
+
+function generarPDFInforme(d, descargar) {
+  const jsPDFLib = window.jspdf?.jsPDF || window.jsPDF;
+  if (!jsPDFLib) { showToast('⚠️ Error: librería PDF no cargada'); return null; }
+  const doc = new jsPDFLib({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const M = 20;
+  let y = M;
+  const fechaStr = new Date(d.fecha + 'T12:00').toLocaleDateString('es-AR', {day:'2-digit',month:'long',year:'numeric'});
+
+  // Header
+  doc.setFillColor(74,124,111);
+  doc.rect(0, 0, W, 28, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(16);
+  doc.text('PsiMind', M, 12);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.text('Gestion Clinica Profesional', M, 19);
+  if (d.caracter !== 'publico') {
+    const char = d.caracter === 'confidencial' ? 'CONFIDENCIAL' : 'RESERVADO';
+    doc.setFontSize(8);
+    doc.text(char, W-M, 12, { align:'right' });
+  }
+  doc.setFontSize(9);
+  doc.text(fechaStr, W-M, 19, { align:'right' });
+
+  y = 40;
+  doc.setTextColor(26,46,37);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  doc.text(d.tipo.toUpperCase(), W/2, y, { align:'center' });
+  y += 4;
+  doc.setDrawColor(74,124,111);
+  doc.setLineWidth(0.4);
+  doc.line(M, y, W-M, y);
+  y += 8;
+
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(10);
+  doc.setTextColor(80,90,88);
+  doc.text('A: ' + d.destinatario, M, y);
+  y += 10;
+
+  const seccion = (titulo, texto) => {
+    if (!texto) return;
+    doc.setFillColor(240,247,244);
+    doc.rect(M, y, W-M*2, 7, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(8);
+    doc.setTextColor(74,124,111);
+    doc.text(titulo.toUpperCase(), M+2, y+5);
+    y += 10;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(10);
+    doc.setTextColor(26,46,37);
+    const lines = doc.splitTextToSize(texto, W-M*2);
+    lines.forEach(line => {
+      if (y > H-45) { doc.addPage(); y = M; }
+      doc.text(line, M, y);
+      y += 6;
+    });
+    y += 5;
+  };
+
+  seccion('Paciente', d.pac);
+  seccion('Motivo de consulta', d.motivo);
+  seccion('Evaluacion y desarrollo', d.evaluacion);
+  seccion('Conclusiones y diagnostico', d.conclusiones);
+  seccion('Recomendaciones', d.recomendaciones);
+
+  // Firma
+  const yFirma = Math.max(y + 10, H - 55);
+  doc.setDrawColor(180,190,188);
+  doc.line(M, yFirma, M+60, yFirma);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.setTextColor(26,46,37);
+  doc.text(d.profNombre, M, yFirma+6);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.setTextColor(80,90,88);
+  doc.text(d.esp, M, yFirma+12);
+  if (d.mat) doc.text('Matricula: ' + d.mat, M, yFirma+18);
+
+  // Footer
+  doc.setFillColor(240,247,244);
+  doc.rect(0, H-10, W, 10, 'F');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(143,163,156);
+  doc.text('Documento generado por PsiMind · ' + fechaStr, W/2, H-4, { align:'center' });
+
+  const filename = 'informe-' + d.pac.replace(/[^a-z0-9]/gi,'-').toLowerCase() + '-' + d.fecha + '.pdf';
+  if (descargar !== false) doc.save(filename);
+  return doc.output('blob');
+}
+
+function previewInforme() {
+  const d = getDatosInforme();
+  if (d.pac === '—') { showToast('⚠️ Selecciona un paciente'); return; }
+  const blob = generarPDFInforme(d, false);
+  if (blob) {
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  }
+}
+
+async function generarYGuardarInforme() {
+  const d = getDatosInforme();
+  if (d.pac === '—') { showToast('⚠️ Selecciona un paciente'); return; }
+  if (!d.evaluacion && !d.motivo) { showToast('⚠️ Completá al menos el motivo o la evaluacion'); return; }
+  showToast('📄 Generando informe...');
+  const blob = generarPDFInforme(d, true);
+  if (!blob) return;
+  let urlPDF = null;
+  try {
+    const fname = 'informe-' + Date.now() + '.pdf';
+    const { data, error } = await sb.storage.from('recibos').upload(fname, blob, { contentType: 'application/pdf' });
+    if (!error) { const { data: u } = sb.storage.from('recibos').getPublicUrl(fname); urlPDF = u?.publicUrl; }
+  } catch(e) {}
+  const informes = JSON.parse(localStorage.getItem('pm_informes') || '[]');
+  informes.unshift({ id:'inf_'+Date.now(), paciente:d.pac, tipo:d.tipo, fecha:d.fecha, url:urlPDF, createdAt:new Date().toISOString() });
+  localStorage.setItem('pm_informes', JSON.stringify(informes));
+  closeModal('modal-nuevo-informe');
+  renderInformes();
+  showToast('✅ Informe generado');
+}
+
+function renderInformes() {
+  const lista = document.getElementById('informes-lista');
+  if (!lista) return;
+  const informes = JSON.parse(localStorage.getItem('pm_informes') || '[]');
+  if (informes.length === 0) {
+    lista.innerHTML = `<div class="card"><div style="padding:2.5rem;text-align:center;color:var(--ink-soft)"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:15px;font-weight:500;color:var(--ink);margin-bottom:6px">Sin informes creados</div><div style="font-size:13px;font-weight:300">Crea un informe clinico para entregarselo a tu paciente en PDF</div></div></div>`;
+    return;
+  }
+  lista.innerHTML = `<div class="card">` + informes.map(inf => {
+    const fStr = inf.fecha ? new Date(inf.fecha+'T12:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    return `<div style="display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:0.5px solid var(--border-soft);flex-wrap:wrap">
+      <div style="font-size:24px">📋</div>
+      <div style="flex:1;min-width:120px"><div style="font-size:14px;font-weight:500;color:var(--ink)">${inf.tipo}</div><div style="font-size:12px;color:var(--ink-soft)">${inf.paciente} · ${fStr}</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${inf.url ? `<button class="row-btn accent" onclick="window.open('${inf.url}','_blank')">📎 Ver PDF</button>` : ''}
+        ${inf.url ? `<button class="row-btn" onclick="enviarInformeWSP('${inf.paciente}','${inf.url}')">📱 WhatsApp</button>` : ''}
+        <button class="row-btn" onclick="eliminarInforme('${inf.id}')">Eliminar</button>
+      </div>
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function enviarInformeWSP(paciente, url) {
+  const lista = getPacientes();
+  const pac = lista.find(p => (p.nombre+' '+p.apellido) === paciente);
+  const tel = pac?.telefono || '';
+  const prof = [getTitulo(), localStorage.getItem('pm_nombre'), localStorage.getItem('pm_apellido')].filter(Boolean).join(' ');
+  const msg = `Hola ${paciente.split(' ')[0]}! 📋\n\nTe comparto tu informe clinico:\n${url}\n\n${prof ? '— ' + prof : ''}\n¡Cualquier consulta estoy disponible!`;
+  sendWSP(msg, tel);
+}
+
+function eliminarInforme(id) {
+  if (!confirm('¿Eliminar este informe?')) return;
+  let informes = JSON.parse(localStorage.getItem('pm_informes') || '[]');
+  informes = informes.filter(i => i.id !== id);
+  localStorage.setItem('pm_informes', JSON.stringify(informes));
+  renderInformes();
+}
+
+// ══ SISTEMA DE NOTIFICACIONES ══
 const DEFAULT_TPLS = [
   'Hola {nombre} 👋\n\nTe recuerdo que {cuando} tenés sesión a las {hora} hs.\n\n¿Confirmás tu asistencia? ¡Gracias!',
   'Hola {nombre}, ¿cómo estás?\n\nTe escribo para recordarte que tenés un saldo pendiente. Cuando puedas coordinamos el pago.\n\n¡Muchas gracias! 🙏',
@@ -3112,7 +3391,7 @@ function renderPacientes(filtro) {
 
 function updatePacientesSelects() {
   const lista = getPacientes();
-  const selects = ['recibo-pac', 'turno-pac', 'deuda-pac'];
+  const selects = ['recibo-pac', 'turno-pac', 'deuda-pac', 'inf-pac'];
   selects.forEach(id => {
     const sel = document.getElementById(id);
     if (!sel) return;

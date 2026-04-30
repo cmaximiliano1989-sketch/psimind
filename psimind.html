@@ -2990,8 +2990,13 @@ function buildAgenda() {
   let h = '<div class="gh-empty"></div>';
   AG_DAYS.forEach((d, i) => {
     const isT = agOffset===0 && i===AG_TODAY;
-    const cnt = AG_TURNOS[i] ? AG_TURNOS[i].length : 0;
-    h += `<div class="gh-day${isT?' today':''}"><div class="gh-weekday">${d}</div><div class="gh-date">${dates[i]}</div><div class="gh-count">${cnt>0?cnt+' turno'+(cnt!==1?'s':''):'·'}</div></div>`;
+    // Contar turnos reales del día
+    const colDate = new Date(lunes); colDate.setDate(lunes.getDate()+i);
+    const tzOff2 = colDate.getTimezoneOffset()*60000;
+    const colStr = new Date(colDate - tzOff2).toISOString().split('T')[0];
+    const allT = JSON.parse(localStorage.getItem('pm_turnos')||'[]');
+    const cnt = allT.filter(t => t.fecha === colStr && !t.archivado).length;
+    h += `<div class="gh-day${isT?' today':''}" onclick="verTurnosDia('${colStr}')" style="cursor:pointer" title="Ver turnos del día"><div class="gh-weekday">${d}</div><div class="gh-date">${dates[i]}</div><div class="gh-count">${cnt>0?'<span style=\'color:var(--sage);font-weight:500\'>' + cnt+' turno'+(cnt!==1?'s':'')+'</span>':'·'}</div></div>`;
   });
   header.innerHTML = h;
 
@@ -3026,7 +3031,8 @@ function buildAgenda() {
   const ts = agOffset===0 && AG_TURNOS[di] ? AG_TURNOS[di].concat(agTurnosConverted) : agTurnosConverted;
     ts.forEach(t => {
       const top = ((t.h - AG_HOURS[0])*60 + t.m)/60*60;
-      b += `<div class="turno ${t.cls}" style="top:${top}px;height:56px" onclick="event.stopPropagation();showToast('Turno: ${t.name} a las ${t.h}:${t.m===0?'00':t.m}')"><div class="turno-name">${t.name}</div><div class="turno-detail">${t.detail}</div></div>`;
+      const turnoId = realTurnos.find(rt => {const [rh,rm]=(rt.hora||'09:00').split(':').map(Number); return rh===t.h&&rm===t.m;})?.id || '';
+      b += `<div class="turno ${t.cls}" style="top:${top}px;height:56px" onclick="event.stopPropagation();abrirMenuTurno('${turnoId}','${thisDateStr}','${t.h}:${t.m===0?'00':t.m}')"><div class="turno-name">${t.name}</div><div class="turno-detail">${t.detail}</div></div>`;
     });
     b += '</div>';
   });
@@ -3036,6 +3042,84 @@ function buildAgenda() {
 }
 
 function agendaWeek(dir) { agOffset += dir; buildAgenda(); }
+
+// Mostrar turnos de un día específico en el panel lateral
+let _diaSeleccionado = null;
+function verTurnosDia(fechaStr) {
+  _diaSeleccionado = fechaStr;
+  const allTurnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
+  const turnosDia = allTurnos.filter(t => t.fecha === fechaStr && !t.archivado).sort((a,b) => a.hora.localeCompare(b.hora));
+  const list = document.getElementById('sp-hoy-list');
+  const sub = document.getElementById('sp-hoy-sub');
+  const hoy = new Date();
+  const tzOff = hoy.getTimezoneOffset()*60000;
+  const hoyStr = new Date(hoy-tzOff).toISOString().split('T')[0];
+  const esFechaHoy = fechaStr === hoyStr;
+  const fechaLabel = new Date(fechaStr+'T12:00').toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'short'});
+  if (sub) sub.textContent = fechaLabel + ' · ' + (turnosDia.length > 0 ? turnosDia.length + ' turno' + (turnosDia.length!==1?'s':'') : 'sin turnos');
+  if (!list) return;
+  if (turnosDia.length === 0) {
+    list.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--ink-soft)">
+      <div style="font-size:24px;margin-bottom:6px">📅</div>
+      <div style="font-size:13px;font-weight:300">Sin turnos para este día</div>
+      <button class="btn primary" style="margin-top:10px;font-size:12px" onclick="abrirModalTurnoConFecha('${fechaStr}','09:00')">+ Agregar turno</button>
+    </div>`;
+    return;
+  }
+  list.innerHTML = turnosDia.map(t => {
+    const estadoBadge = t.cobrado === true
+      ? '<span style="font-size:10px;background:#E1F5EE;color:#0F6E56;padding:2px 8px;border-radius:20px">✓ Pagado</span>'
+      : t.cobrado === false
+      ? '<span style="font-size:10px;background:#FAECE7;color:#993C1D;padding:2px 8px;border-radius:20px">⚠ Deuda</span>'
+      : esFechaHoy ? '<span style="font-size:10px;background:var(--sage-light);color:var(--sage);padding:2px 8px;border-radius:20px">Hoy</span>'
+      : fechaStr < hoyStr ? '<span style="font-size:10px;background:#FFF3D6;color:#854F0B;padding:2px 8px;border-radius:20px">⏰ Pendiente</span>' : '';
+    return `<div class="sp-turno">
+      <div class="sp-turno-body" style="justify-content:space-between">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <div style="font-size:20px;color:var(--sage);font-weight:500;min-width:44px">${t.hora}</div>
+          <div>
+            <div style="font-size:14px;font-weight:500;color:var(--ink)">${t.paciente}</div>
+            <div style="font-size:12px;color:var(--ink-soft)">${t.duracion||'50 min'}</div>
+          </div>
+        </div>
+        <div>${estadoBadge}</div>
+      </div>
+      <div class="sp-turno-actions" style="display:flex;gap:6px;margin-top:6px;padding-left:20px;flex-wrap:wrap">
+        ${t.cobrado === undefined ? `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar</button>` : ''}
+        <button class="row-btn" onclick="abrirMenuTurno('${t.id}','${t.fecha}','${t.hora}')">✏️ Editar</button>
+        <button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>
+        <button class="row-btn" style="color:var(--terra)" onclick="eliminarTurno('${t.id}')">🗑 Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Modal de gestión de turno existente (editar/reemplazar/eliminar)
+function abrirMenuTurno(turnoId, fecha, hora) {
+  if (!turnoId) {
+    // Click en turno sin ID — abrir modal nuevo en esa hora
+    abrirModalTurnoConFecha(fecha, hora);
+    return;
+  }
+  const turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
+  const t = turnos.find(x => x.id === turnoId);
+  if (!t) return;
+
+  // Llenar el modal de edición
+  document.getElementById('turno-pac').value = t.paciente || '';
+  document.getElementById('turno-fecha').value = t.fecha || '';
+  document.getElementById('turno-hora').value = t.hora || '';
+  // Guardar el ID para poder actualizarlo
+  document.getElementById('modal-turno').dataset.editId = turnoId;
+
+  // Cambiar el título y el botón del modal
+  const title = document.querySelector('#modal-turno .modal-title');
+  if (title) title.textContent = '✏️ Editar turno';
+  const btn = document.querySelector('#modal-turno .modal-btn.primary');
+  if (btn) btn.textContent = 'Guardar cambios';
+
+  openModal('modal-turno');
+}
 
 function abrirModalTurnoConFecha(fecha, hora) {
   const f = document.getElementById('turno-fecha');
@@ -3144,6 +3228,7 @@ function eliminarTurno(id) {
   localStorage.setItem('pm_turnos', JSON.stringify(turnos));
   dbEliminar('turnos', id);
   buildAgenda();
+  if (_diaSeleccionado) verTurnosDia(_diaSeleccionado); else renderSidePanel();
   actualizarDashboard();
   showToast('Turno eliminado');
 }

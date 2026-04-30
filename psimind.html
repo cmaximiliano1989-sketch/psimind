@@ -68,6 +68,13 @@ async function initAuth() {
   // Mostrar la app
   document.getElementById('app-wrapper').style.display = 'block';
   document.getElementById('auth-loading').style.display = 'none';
+  
+  // Actualizar UI del profesional con datos frescos de Supabase
+  setTimeout(() => {
+    loadConfig();
+    actualizarDashboard();
+    renderSidePanel();
+  }, 100);
 
   // Si el recibo ya está visible, inicializarlo con datos frescos
   const reciboPanel = document.getElementById('cp-recibo');
@@ -92,6 +99,12 @@ async function initAuth() {
       if (meta?.prof_tel) localStorage.setItem('pm_tel_prof', meta.prof_tel);
       if (meta?.prof_bio) localStorage.setItem('pm_bio', meta.prof_bio);
     }
+    // Siempre sincronizar metadata independientemente del dispositivo
+    const metaAll = session.user.user_metadata;
+    if (metaAll?.prof_nombre && !localStorage.getItem('pm_nombre')) localStorage.setItem('pm_nombre', metaAll.prof_nombre);
+    if (metaAll?.prof_apellido && !localStorage.getItem('pm_apellido')) localStorage.setItem('pm_apellido', metaAll.prof_apellido);
+    if (metaAll?.prof_genero && !localStorage.getItem('pm_genero')) localStorage.setItem('pm_genero', metaAll.prof_genero);
+    if (metaAll?.prof_matricula && !localStorage.getItem('pm_matricula')) localStorage.setItem('pm_matricula', metaAll.prof_matricula);
   }
   // Si no completó, el DOMContentLoaded lo mostrará
 }
@@ -1189,9 +1202,9 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
         <div style="display:flex;align-items:center;justify-content:space-between;padding:0.9rem 1.4rem;border-top:1px solid var(--border-soft);gap:1rem">
           <div style="font-size:13px;color:var(--ink-mid)">¿Con cuánta anticipación?</div>
           <select id="notif-anticipacion" style="font-family:'DM Sans',sans-serif;font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--cream);color:var(--ink);outline:none" onchange="renderRecordatoriosPendientes()">
-            <option value="1440">24 horas antes</option>
+            <option value="1440" selected>24 horas antes</option>
             <option value="720">12 horas antes</option>
-            <option value="120" selected>2 horas antes</option>
+            <option value="120">2 horas antes</option>
             <option value="30">30 min antes</option>
           </select>
         </div>
@@ -2200,9 +2213,13 @@ function renderRecordatoriosPendientes() {
   // Turnos próximos dentro del período de anticipación
   const turnosPendientes = turnos.filter(t => {
     if (t.cobrado !== undefined) return false; // ya finalizado
+    if (t.archivado) return false;
     const fechaHoraTurno = new Date(t.fecha + 'T' + (t.hora || '09:00') + ':00');
     const diffMin = (fechaHoraTurno - ahora) / 60000;
-    return diffMin > 0 && diffMin <= anticipMinutos && !enviadosIds.includes(t.id);
+    // Mostrar turnos futuros dentro del período Y turnos de hoy que aún no fueron enviados
+    const hoyStr2 = new Date(ahora - ahora.getTimezoneOffset()*60000).toISOString().split('T')[0];
+    const esHoy = t.fecha === hoyStr2;
+    return (diffMin > -120 && diffMin <= anticipMinutos) && !enviadosIds.includes(t.id) && (diffMin > 0 || esHoy);
   });
 
   // Deudas pendientes para aviso (si toggle activado)
@@ -2973,7 +2990,7 @@ function renderSidePanel() {
   const tzOff = hoy.getTimezoneOffset() * 60000;
   const hoyStr = new Date(hoy - tzOff).toISOString().split('T')[0];
   const allTurnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
-  const turnosHoy = allTurnos.filter(t => t.fecha === hoyStr).sort((a,b) => a.hora.localeCompare(b.hora));
+  const turnosHoy = allTurnos.filter(t => t.fecha === hoyStr && !t.archivado).sort((a,b) => a.hora.localeCompare(b.hora));
   const sub = document.getElementById('sp-hoy-sub');
   const list = document.getElementById('sp-hoy-list');
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
@@ -2988,7 +3005,7 @@ function renderSidePanel() {
     const [th, tm] = t.hora.split(':').map(Number);
     const turnoMin = th * 60 + tm;
     const durMin = parseInt(t.duracion) || 50;
-    const terminado = ahoraHH > turnoMin + durMin;
+    const terminado = ahoraHH >= turnoMin; // mostrar desde que empieza el turno
     const enCurso = ahoraHH >= turnoMin && ahoraHH <= turnoMin + durMin;
     const estadoBadge = t.cobrado === true
       ? '<span style="font-size:10px;background:#E1F5EE;color:#0F6E56;padding:2px 8px;border-radius:20px;font-weight:500">✓ Pagado</span>'
@@ -2998,7 +3015,7 @@ function renderSidePanel() {
       ? '<span style="font-size:10px;background:#FFF3D6;color:#854F0B;padding:2px 8px;border-radius:20px;font-weight:500">● En curso</span>'
       : '';
     const acciones = t.cobrado !== undefined
-      ? `<button class="row-btn" onclick="eliminarTurno('${t.id}')">Archivar</button>`
+      ? `<button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>`
       : terminado
       ? `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
          <button class="row-btn" onclick="eliminarTurno('${t.id}')">Cancelar</button>`
@@ -3027,13 +3044,26 @@ function eliminarTurno(id) {
   localStorage.setItem('pm_turnos', JSON.stringify(turnos));
   dbEliminar('turnos', id);
   buildAgenda();
+  actualizarDashboard();
   showToast('Turno eliminado');
+}
+
+function archivarTurno(id) {
+  // Marcar como archivado sin eliminar
+  let turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
+  const idx = turnos.findIndex(t => t.id === id);
+  if (idx === -1) return;
+  turnos[idx].archivado = true;
+  localStorage.setItem('pm_turnos', JSON.stringify(turnos));
+  dbGuardar('turnos', { id, paciente: turnos[idx].paciente, fecha: turnos[idx].fecha, hora: turnos[idx].hora, cobrado: turnos[idx].cobrado, archivado: true });
+  renderSidePanel();
+  showToast('Turno archivado');
 }
 
 function abrirFinalizarSesion(turnoId) {
   const turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
   const t = turnos.find(x => x.id === turnoId);
-  if (!t) return;
+  if (!t) { showToast('⚠️ Turno no encontrado'); return; }
   // Pre-llenar modal
   document.getElementById('fs-turno-id').value = turnoId;
   document.getElementById('fs-paciente').textContent = t.paciente;

@@ -3038,10 +3038,17 @@ function buildAgenda() {
   });
   body.innerHTML = b;
   setTimeout(() => { const g=document.querySelector('.grid-area'); if(g) g.scrollTop=60; }, 50);
-  renderSidePanel();
+  // Mantener el día seleccionado al navegar entre semanas
+  if (_diaSeleccionado) {
+    verTurnosDia(_diaSeleccionado);
+  } else {
+    renderSidePanel();
+  }
 }
 
 function agendaWeek(dir) { agOffset += dir; buildAgenda(); }
+
+function resetDiaSeleccionado() { _diaSeleccionado = null; renderSidePanel(); }
 
 // Mostrar turnos de un día específico en el panel lateral
 let _diaSeleccionado = null;
@@ -4619,6 +4626,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     initTrial(currentUser.created_at);
+    iniciarRelojTiempoReal();
   }
 });
 </script>

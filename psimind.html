@@ -148,8 +148,8 @@ async function dbCargarTodo() {
       sb.from('profesionales').select('*').eq('user_id', uid).single()
     ]);
     // Sincronizar a localStorage
-    if (pacRes.data?.length) {
-      const pacs = pacRes.data.map(r => ({
+    if (pacRes.data !== null) {
+      const pacs = (pacRes.data || []).map(r => ({
         id: r.id, nombre: r.nombre, apellido: r.apellido,
         telefono: r.telefono, dni: r.dni, email: r.email,
         fechaNacimiento: r.fecha_nacimiento, diagnostico: r.diagnostico,
@@ -159,17 +159,18 @@ async function dbCargarTodo() {
       }));
       localStorage.setItem('pm_pacientes', JSON.stringify(pacs));
     }
-    if (turRes.data?.length) {
-      const turns = turRes.data.map(r => ({
+    if (turRes.data !== null) {
+      const turns = (turRes.data || []).map(r => ({
         id: r.id, paciente: r.paciente, fecha: r.fecha,
         hora: r.hora, duracion: r.duracion,
         telPaciente: r.tel_paciente, cobrado: r.cobrado,
+        archivado: r.archivado || false,
         createdAt: r.created_at
       }));
       localStorage.setItem('pm_turnos', JSON.stringify(turns));
     }
-    if (recRes.data?.length) {
-      const recs = recRes.data.map(r => ({
+    if (recRes.data !== null) {
+      const recs = (recRes.data || []).map(r => ({
         id: r.id, num: r.num, paciente: r.paciente, fecha: r.fecha,
         nroSesion: r.nro_sesion, concepto: r.concepto,
         monto: r.monto, montoFmt: r.monto_fmt, estado: r.estado,
@@ -177,8 +178,8 @@ async function dbCargarTodo() {
       }));
       localStorage.setItem('pm_recibos', JSON.stringify(recs));
     }
-    if (deuRes.data?.length) {
-      const deus = deuRes.data.map(r => ({
+    if (deuRes.data !== null) {
+      const deus = (deuRes.data || []).map(r => ({
         id: r.id, paciente: r.paciente, monto: r.monto,
         montoFmt: r.monto_fmt, sesiones: r.sesiones,
         motivo: r.motivo, fecha: r.fecha, estado: r.estado,
@@ -1179,7 +1180,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
 <div class="main">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;flex-wrap:wrap;gap:10px">
     <div class="section-h1" style="margin-bottom:0">Recordatorios <em>inteligentes</em></div>
-    <button class="btn primary" onclick="escanearYEnviarRecordatorios()">📱 Enviar recordatorios pendientes</button>
+    <button class="btn primary" onclick="escanearYEnviarRecordatorios()">📱 Enviar todos los recordatorios</button>
   </div>
 
   <div id="notif-wsp-banner" style="background:var(--amber-light);border:1px solid rgba(196,136,46,0.3);border-radius:12px;padding:12px 1.2rem;margin-bottom:1.5rem;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
@@ -2301,12 +2302,71 @@ function enviarRecordatorio(id, msgEncoded, tel) {
   agregarAlHistorial(id, msg);
 }
 
+let _recordatorioQueue = [];
+let _recordatorioIdx = 0;
+
 function enviarTodos() {
+  // Recolectar todos los recordatorios pendientes
   const btns = document.querySelectorAll('#notif-lista-pendientes button.btn.primary[onclick^="enviarRecordatorio"]');
-  if (btns.length === 0) { showToast('Sin recordatorios para enviar'); return; }
-  // Enviar el primero y mostrar los restantes
-  btns[0].click();
-  if (btns.length > 1) showToast(`Enviando recordatorio 1 de ${btns.length}. Continuá con el siguiente.`);
+  if (btns.length === 0) { showToast('✅ Sin recordatorios pendientes'); return; }
+  
+  // Construir cola de mensajes
+  _recordatorioQueue = Array.from(btns).map(btn => {
+    const onclick = btn.getAttribute('onclick');
+    const match = onclick.match(/enviarRecordatorio\('([^']+)','([^']*)','([^']*)'\)/);
+    if (!match) return null;
+    return { id: match[1], msg: decodeURIComponent(match[2]), tel: match[3] };
+  }).filter(Boolean);
+  
+  _recordatorioIdx = 0;
+  enviarSiguienteRecordatorio();
+}
+
+function enviarSiguienteRecordatorio() {
+  if (_recordatorioIdx >= _recordatorioQueue.length) {
+    showToast('✅ Todos los recordatorios enviados (' + _recordatorioQueue.length + ')');
+    _recordatorioQueue = [];
+    return;
+  }
+  
+  const item = _recordatorioQueue[_recordatorioIdx];
+  const total = _recordatorioQueue.length;
+  const actual = _recordatorioIdx + 1;
+  
+  // Abrir WhatsApp
+  sendWSP(item.msg, item.tel);
+  marcarEnviadoById(item.id);
+  
+  _recordatorioIdx++;
+  
+  if (_recordatorioIdx < total) {
+    // Mostrar botón para continuar con el siguiente
+    showToast(`📱 ${actual}/${total} enviado — tocá para el siguiente`);
+    // Actualizar UI
+    renderRecordatoriosPendientes();
+    renderHistorialNotif();
+    // Botón flotante para continuar
+    setTimeout(() => {
+      const container = document.getElementById('notif-lista-pendientes');
+      if (container && _recordatorioIdx < total) {
+        const continueDiv = document.createElement('div');
+        continueDiv.id = 'notif-continue-btn';
+        continueDiv.style.cssText = 'position:fixed;bottom:90px;right:20px;z-index:999';
+        continueDiv.innerHTML = `<button class="btn primary" style="box-shadow:0 4px 16px rgba(74,124,111,0.4);padding:14px 20px;font-size:14px" onclick="enviarSiguienteRecordatorio();this.parentElement.remove()">
+          📱 Enviar siguiente (${_recordatorioIdx + 1}/${total}) →
+        </button>`;
+        // Remover si ya existe
+        document.getElementById('notif-continue-btn')?.remove();
+        document.body.appendChild(continueDiv);
+        // Auto-remover después de 30 segundos
+        setTimeout(() => continueDiv.remove(), 30000);
+      }
+    }, 500);
+  } else {
+    renderRecordatoriosPendientes();
+    renderHistorialNotif();
+    showToast('✅ Todos los recordatorios enviados');
+  }
 }
 
 function marcarEnviado(id, el) {
@@ -3049,15 +3109,26 @@ function eliminarTurno(id) {
 }
 
 function archivarTurno(id) {
-  // Marcar como archivado sin eliminar
   let turnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
   const idx = turnos.findIndex(t => t.id === id);
   if (idx === -1) return;
+  const t = turnos[idx];
   turnos[idx].archivado = true;
   localStorage.setItem('pm_turnos', JSON.stringify(turnos));
-  dbGuardar('turnos', { id, paciente: turnos[idx].paciente, fecha: turnos[idx].fecha, hora: turnos[idx].hora, cobrado: turnos[idx].cobrado, archivado: true });
+  // Guardar en Supabase con todos los campos
+  dbGuardar('turnos', {
+    id: t.id,
+    paciente: t.paciente,
+    fecha: t.fecha,
+    hora: t.hora,
+    duracion: t.duracion || '50 min',
+    tel_paciente: t.telPaciente || '',
+    cobrado: t.cobrado !== undefined ? t.cobrado : null,
+    archivado: true
+  });
   renderSidePanel();
-  showToast('Turno archivado');
+  buildAgenda();
+  showToast('📁 Turno archivado — queda guardado en tu historial');
 }
 
 function abrirFinalizarSesion(turnoId) {
@@ -3109,7 +3180,7 @@ function finalizarSesion(pago) {
     turnos[idx].cobrado = true;
     localStorage.setItem('pm_turnos', JSON.stringify(turnos));
     // Supabase: actualizar turno y guardar recibo
-    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, cobrado: true });
+    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, duracion: t.duracion || '50 min', tel_paciente: t.telPaciente || '', cobrado: true, archivado: false });
     dbGuardar('recibos', {
       id: recibo.id, num: recibo.num, paciente: recibo.paciente,
       fecha: recibo.fecha, monto: recibo.monto, monto_fmt: recibo.montoFmt,
@@ -3143,7 +3214,7 @@ function finalizarSesion(pago) {
     turnos[idx].cobrado = false;
     localStorage.setItem('pm_turnos', JSON.stringify(turnos));
     // Supabase: actualizar turno y guardar deuda
-    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, cobrado: false });
+    dbGuardar('turnos', { id: turnoId, paciente: t.paciente, fecha: t.fecha, hora: t.hora, duracion: t.duracion || '50 min', tel_paciente: t.telPaciente || '', cobrado: false, archivado: false });
     dbGuardar('deudas', {
       id: deuda.id, paciente: deuda.paciente, monto: deuda.monto,
       monto_fmt: deuda.montoFmt, sesiones: 1,

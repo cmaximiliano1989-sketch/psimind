@@ -3050,42 +3050,82 @@ function renderSidePanel() {
   const tzOff = hoy.getTimezoneOffset() * 60000;
   const hoyStr = new Date(hoy - tzOff).toISOString().split('T')[0];
   const allTurnos = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
-  const turnosHoy = allTurnos.filter(t => t.fecha === hoyStr && !t.archivado).sort((a,b) => a.hora.localeCompare(b.hora));
+
+  // Mostrar turnos de HOY + turnos anteriores sin finalizar (cobrado === undefined y no archivados)
+  const turnosPanel = allTurnos.filter(t => {
+    if (t.archivado) return false;
+    if (t.fecha === hoyStr) return true; // siempre mostrar los de hoy
+    if (t.fecha < hoyStr && t.cobrado === undefined) return true; // anteriores sin finalizar
+    return false;
+  }).sort((a, b) => {
+    // Primero los de hoy, después los anteriores
+    if (a.fecha !== b.fecha) return a.fecha > b.fecha ? -1 : 1;
+    return a.hora.localeCompare(b.hora);
+  });
+
   const sub = document.getElementById('sp-hoy-sub');
   const list = document.getElementById('sp-hoy-list');
   const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
-  if (sub) sub.textContent = dias[hoy.getDay()] + ' ' + hoy.getDate() + ' · ' + (turnosHoy.length > 0 ? turnosHoy.length + ' turno' + (turnosHoy.length !== 1 ? 's' : '') : 'sin turnos');
+  const pendientesAnteriores = turnosPanel.filter(t => t.fecha < hoyStr).length;
+  const turnosHoyCount = turnosPanel.filter(t => t.fecha === hoyStr).length;
+  let subText = dias[hoy.getDay()] + ' ' + hoy.getDate() + ' · ';
+  if (turnosHoyCount > 0) subText += turnosHoyCount + ' turno' + (turnosHoyCount !== 1 ? 's' : '');
+  else subText += 'sin turnos';
+  if (pendientesAnteriores > 0) subText += ' · ' + pendientesAnteriores + ' pendiente' + (pendientesAnteriores !== 1 ? 's' : '');
+  if (sub) sub.textContent = subText;
+
   if (!list) return;
-  if (turnosHoy.length === 0) {
+  if (turnosPanel.length === 0) {
     list.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--ink-soft)"><div style="font-size:28px;margin-bottom:8px">📅</div><div style="font-size:13px;font-weight:300">Sin turnos para hoy.<br>Usá el calendario para agendar.</div></div>`;
     return;
   }
-  const ahoraHH = new Date().getHours() * 60 + new Date().getMinutes();
-  list.innerHTML = turnosHoy.map(t => {
+
+  const ahoraHH = hoy.getHours() * 60 + hoy.getMinutes();
+  list.innerHTML = turnosPanel.map(t => {
     const [th, tm] = t.hora.split(':').map(Number);
     const turnoMin = th * 60 + tm;
     const durMin = parseInt(t.duracion) || 50;
-    const terminado = ahoraHH >= turnoMin; // mostrar desde que empieza el turno
-    const enCurso = ahoraHH >= turnoMin && ahoraHH <= turnoMin + durMin;
+    const esHoy = t.fecha === hoyStr;
+    const esPasado = t.fecha < hoyStr;
+
+    // Badge de estado
     const estadoBadge = t.cobrado === true
       ? '<span style="font-size:10px;background:#E1F5EE;color:#0F6E56;padding:2px 8px;border-radius:20px;font-weight:500">✓ Pagado</span>'
       : t.cobrado === false
-      ? '<span style="font-size:10px;background:#FAECE7;color:#993C1D;padding:2px 8px;border-radius:20px;font-weight:500">Deuda registrada</span>'
-      : enCurso
+      ? '<span style="font-size:10px;background:#FAECE7;color:#993C1D;padding:2px 8px;border-radius:20px;font-weight:500">⚠ Deuda</span>'
+      : esPasado
+      ? '<span style="font-size:10px;background:#FFF3D6;color:#854F0B;padding:2px 8px;border-radius:20px;font-weight:500">⏰ Pendiente</span>'
+      : esHoy && ahoraHH >= turnoMin && ahoraHH <= turnoMin + durMin
       ? '<span style="font-size:10px;background:#FFF3D6;color:#854F0B;padding:2px 8px;border-radius:20px;font-weight:500">● En curso</span>'
       : '';
-    const acciones = t.cobrado !== undefined
-      ? `<button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>`
-      : terminado
-      ? `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
-         <button class="row-btn" onclick="eliminarTurno('${t.id}')">Cancelar</button>`
-      : `<button class="row-btn" onclick="sendWSP('Hola ${t.paciente.split(' ')[0]}! Te recuerdo que tenés sesión hoy a las ${t.hora} hs. ¿Confirmás?', '${t.telPaciente || ''}')">📱 Recordar</button>
-         <button class="row-btn" onclick="eliminarTurno('${t.id}')">Cancelar</button>`;
+
+    // Fecha label para turnos anteriores
+    const fechaLabel = esPasado
+      ? `<div style="font-size:10px;color:var(--terra);font-weight:500;margin-bottom:2px">📅 ${new Date(t.fecha+'T12:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'})}</div>`
+      : '';
+
+    // Acciones
+    let acciones;
+    if (t.cobrado !== undefined) {
+      acciones = `<button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>`;
+    } else {
+      // Mostrar "Finalizar sesión" para: turnos de hoy que ya empezaron O turnos de días anteriores
+      acciones = `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
+        <button class="row-btn" onclick="eliminarTurno('${t.id}')">Cancelar</button>`;
+      // Para turnos futuros de hoy, mostrar recordar
+      if (esHoy && ahoraHH < turnoMin) {
+        acciones = `<button class="row-btn" onclick="sendWSP('Hola ${t.paciente.split(' ')[0]}! Te recuerdo que tenés sesión hoy a las ${t.hora} hs. ¿Confirmás?', '${t.telPaciente || ''}')">📱 Recordar</button>
+          <button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar</button>
+          <button class="row-btn" onclick="eliminarTurno('${t.id}')">Cancelar</button>`;
+      }
+    }
+
     return `<div class="sp-turno">
       <div class="sp-turno-body" style="justify-content:space-between">
         <div style="display:flex;gap:10px;align-items:flex-start">
           <div style="font-size:20px;color:var(--sage);font-weight:500;min-width:44px">${t.hora}</div>
           <div>
+            ${fechaLabel}
             <div style="font-size:14px;font-weight:500;color:var(--ink)">${t.paciente}</div>
             <div style="font-size:12px;color:var(--ink-soft)">${t.duracion || '50 min'}</div>
           </div>

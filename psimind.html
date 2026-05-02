@@ -137,9 +137,10 @@ async function dbEliminar(tabla, id) {
 }
 
 async function dbCargarTodo() {
+  const uid = currentUser?.id;
+  if (!uid) return;
+
   try {
-    const uid = currentUser?.id;
-    if (!uid) return;
     const [pacRes, turRes, recRes, deuRes, profRes] = await Promise.all([
       sb.from('pacientes').select('*').eq('user_id', uid),
       sb.from('turnos').select('*').eq('user_id', uid),
@@ -147,8 +148,12 @@ async function dbCargarTodo() {
       sb.from('deudas').select('*').eq('user_id', uid),
       sb.from('profesionales').select('*').eq('user_id', uid).single()
     ]);
-    // Sincronizar a localStorage
-    if (pacRes.data !== null) {
+
+    // ── Estrategia de merge: Supabase gana SOLO si tiene datos ──
+    // Si Supabase devuelve vacío pero localStorage tiene datos → conservar localStorage
+    // Esto evita perder datos por errores de red o primera carga
+
+    if (!pacRes.error && pacRes.data !== null) {
       const pacs = (pacRes.data || []).map(r => ({
         id: r.id, nombre: r.nombre, apellido: r.apellido,
         telefono: r.telefono, dni: r.dni, email: r.email,
@@ -157,9 +162,25 @@ async function dbCargarTodo() {
         nroSesion: r.nro_sesion, notas_sesion: r.notas_sesion || [],
         createdAt: r.created_at
       }));
-      localStorage.setItem('pm_pacientes', JSON.stringify(pacs));
+      // Solo sobreescribir si Supabase tiene datos O si localStorage también está vacío
+      const localPacs = JSON.parse(localStorage.getItem('pm_pacientes') || '[]');
+      if (pacs.length > 0 || localPacs.length === 0) {
+        localStorage.setItem('pm_pacientes', JSON.stringify(pacs));
+      } else if (localPacs.length > 0 && pacs.length === 0) {
+        // Supabase vacío pero local tiene datos → subir local a Supabase
+        console.log('Sincronizando pacientes locales a Supabase...');
+        localPacs.forEach(p => dbGuardar('pacientes', {
+          id: p.id, nombre: p.nombre, apellido: p.apellido,
+          telefono: p.telefono, dni: p.dni, email: p.email,
+          fecha_nacimiento: p.fechaNacimiento || null,
+          diagnostico: p.diagnostico, obra_social: p.obraSocial,
+          notas: p.notas, nro_sesion: p.nroSesion || 0,
+          notas_sesion: p.notas_sesion || []
+        }));
+      }
     }
-    if (turRes.data !== null) {
+
+    if (!turRes.error && turRes.data !== null) {
       const turns = (turRes.data || []).map(r => ({
         id: r.id, paciente: r.paciente, fecha: r.fecha,
         hora: r.hora, duracion: r.duracion,
@@ -167,27 +188,59 @@ async function dbCargarTodo() {
         archivado: r.archivado || false,
         createdAt: r.created_at
       }));
-      localStorage.setItem('pm_turnos', JSON.stringify(turns));
+      const localTurns = JSON.parse(localStorage.getItem('pm_turnos') || '[]');
+      if (turns.length > 0 || localTurns.length === 0) {
+        localStorage.setItem('pm_turnos', JSON.stringify(turns));
+      } else if (localTurns.length > 0 && turns.length === 0) {
+        localTurns.forEach(t => dbGuardar('turnos', {
+          id: t.id, paciente: t.paciente, fecha: t.fecha,
+          hora: t.hora, duracion: t.duracion || '50 min',
+          tel_paciente: t.telPaciente || '', cobrado: t.cobrado,
+          archivado: t.archivado || false
+        }));
+      }
     }
-    if (recRes.data !== null) {
+
+    if (!recRes.error && recRes.data !== null) {
       const recs = (recRes.data || []).map(r => ({
         id: r.id, num: r.num, paciente: r.paciente, fecha: r.fecha,
         nroSesion: r.nro_sesion, concepto: r.concepto,
         monto: r.monto, montoFmt: r.monto_fmt, estado: r.estado,
         createdAt: r.created_at
       }));
-      localStorage.setItem('pm_recibos', JSON.stringify(recs));
+      const localRecs = JSON.parse(localStorage.getItem('pm_recibos') || '[]');
+      if (recs.length > 0 || localRecs.length === 0) {
+        localStorage.setItem('pm_recibos', JSON.stringify(recs));
+      } else if (localRecs.length > 0 && recs.length === 0) {
+        localRecs.forEach(r => dbGuardar('recibos', {
+          id: r.id, num: r.num, paciente: r.paciente, fecha: r.fecha,
+          nro_sesion: r.nroSesion, concepto: r.concepto,
+          monto: r.monto, monto_fmt: r.montoFmt, estado: r.estado || 'pagado'
+        }));
+      }
     }
-    if (deuRes.data !== null) {
+
+    if (!deuRes.error && deuRes.data !== null) {
       const deus = (deuRes.data || []).map(r => ({
         id: r.id, paciente: r.paciente, monto: r.monto,
         montoFmt: r.monto_fmt, sesiones: r.sesiones,
         motivo: r.motivo, fecha: r.fecha, estado: r.estado,
         telPaciente: r.tel_paciente, createdAt: r.created_at
       }));
-      localStorage.setItem('pm_deudas', JSON.stringify(deus));
+      const localDeus = JSON.parse(localStorage.getItem('pm_deudas') || '[]');
+      if (deus.length > 0 || localDeus.length === 0) {
+        localStorage.setItem('pm_deudas', JSON.stringify(deus));
+      } else if (localDeus.length > 0 && deus.length === 0) {
+        localDeus.forEach(d => dbGuardar('deudas', {
+          id: d.id, paciente: d.paciente, monto: d.monto,
+          monto_fmt: d.montoFmt, sesiones: d.sesiones,
+          motivo: d.motivo, fecha: d.fecha, estado: 'deuda',
+          tel_paciente: d.telPaciente || ''
+        }));
+      }
     }
-    if (profRes.data) {
+
+    if (profRes.data && !profRes.error) {
       const p = profRes.data;
       if (p.nombre) localStorage.setItem('pm_nombre', p.nombre);
       if (p.apellido) localStorage.setItem('pm_apellido', p.apellido);
@@ -196,11 +249,56 @@ async function dbCargarTodo() {
       if (p.email_prof) localStorage.setItem('pm_email_prof', p.email_prof);
       if (p.telefono) localStorage.setItem('pm_tel_prof', p.telefono);
       if (p.bio) localStorage.setItem('pm_bio', p.bio);
-      if (p.wsp_numero) { localStorage.setItem('pm_wsp', p.wsp_numero); }
+      if (p.wsp_numero) localStorage.setItem('pm_wsp', p.wsp_numero);
       if (p.precio_sesion) localStorage.setItem('pm_precio_sesion', p.precio_sesion);
       if (p.especialidad_recibo) localStorage.setItem('pm_especialidad_recibo', p.especialidad_recibo);
     }
-  } catch(e) { console.warn('dbCargarTodo error:', e); }
+
+    // Guardar timestamp de última sincronización
+    localStorage.setItem('pm_last_sync', new Date().toISOString());
+
+  } catch(e) {
+    console.warn('dbCargarTodo error — usando datos locales como fallback:', e);
+    // NO limpiar localStorage en caso de error — mantener datos existentes
+  }
+}
+
+// Auto-sincronizar cada 5 minutos si la app está activa
+function iniciarAutoSync() {
+  setInterval(async () => {
+    try {
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        await dbCargarTodo();
+        renderPacientes();
+        renderHistorial();
+        renderDeudas();
+        actualizarDashboard();
+        renderSidePanel();
+      }
+    } catch(e) {}
+  }, 5 * 60 * 1000); // cada 5 minutos
+
+  // Re-sincronizar cuando el usuario vuelve a la pestaña
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible') {
+      const lastSync = localStorage.getItem('pm_last_sync');
+      const now = new Date();
+      const diff = lastSync ? (now - new Date(lastSync)) / 1000 : 999;
+      // Solo re-sincronizar si pasaron más de 60 segundos
+      if (diff > 60) {
+        try {
+          const { data: { session } } = await sb.auth.getSession();
+          if (session) {
+            await dbCargarTodo();
+            renderPacientes();
+            actualizarDashboard();
+            renderSidePanel();
+          }
+        } catch(e) {}
+      }
+    }
+  });
 }
 
 async function dbGuardarProfesional() {
@@ -4627,6 +4725,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initTrial(currentUser.created_at);
     iniciarRelojTiempoReal();
+    iniciarAutoSync();
   }
 });
 </script>

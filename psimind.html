@@ -3016,7 +3016,8 @@ function verTurnosDia(fechaStr) {
       </div>
       <div class="sp-turno-actions" style="display:flex;gap:6px;margin-top:6px;padding-left:20px;flex-wrap:wrap">
         ${t.cobrado === undefined ? `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
-          <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>` : `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Ver estado</button>`}
+          <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>` : `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Ver estado</button>
+          <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>`}
         <button class="row-btn" onclick="abrirMenuTurno('${t.id}','${t.fecha}','${t.hora}')">✏️ Editar</button>
         <button class="row-btn" style="color:var(--terra)" onclick="eliminarTurno('${t.id}')">🗑 Eliminar</button>
       </div>
@@ -3105,7 +3106,9 @@ function renderSidePanel() {
 
     let acciones;
     if (t.cobrado !== undefined) {
-      acciones = `<button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>`;
+      acciones = `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Ver estado</button>
+        <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>
+        <button class="row-btn" onclick="archivarTurno('${t.id}')">📁 Archivar</button>`;
     } else {
       acciones = `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
         <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>

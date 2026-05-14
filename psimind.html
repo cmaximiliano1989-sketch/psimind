@@ -349,6 +349,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
 .gh-date{font-size:22px;font-weight:500;color:var(--ink);line-height:1.1;margin-top:2px;}
 .gh-day.today .gh-date{color:var(--white);background:var(--sage);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:2px auto 0;}
 .gh-day.today .gh-weekday{color:var(--sage);font-weight:500;}
+.gh-day.selected{background:rgba(74,124,111,0.08);border-radius:8px;}
+.gh-day.selected .gh-weekday{color:var(--sage);font-weight:600;}
+.gh-day.selected .gh-date{color:var(--sage);font-weight:600;}
+.gh-day:hover{background:rgba(74,124,111,0.05);border-radius:8px;}
 .gh-count{font-size:11px;color:var(--ink-soft);margin-top:3px;}
 .grid-body{display:grid;grid-template-columns:52px repeat(6,minmax(0,1fr));}
 .time-slot{height:60px;border-bottom:1px solid var(--border-soft);display:flex;align-items:flex-start;justify-content:flex-end;padding:4px 8px 0 0;font-size:11px;color:var(--ink-soft);font-weight:300;}
@@ -374,7 +378,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--cream);color:var(--ink);m
 .sp-turno{padding:13px 1.5rem;border-bottom:1px solid var(--border-soft);transition:background 0.15s;display:flex;flex-direction:column;gap:0;}
 .sp-turno:hover{background:var(--cream);}
 .sp-turno-body{display:flex;align-items:flex-start;gap:10px;cursor:pointer;}
-.sp-turno-actions{display:flex;gap:6px;margin-top:8px;padding-left:20px;}
+.sp-turno-actions{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
 .sp-action-btn{font-family:'DM Sans',sans-serif;font-size:10px;padding:4px 10px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--ink-soft);cursor:pointer;transition:all 0.15s;white-space:nowrap;}
 .sp-action-btn.cancel:hover{background:var(--terra-light);color:var(--terra);border-color:rgba(181,96,58,0.3);}
 .sp-action-btn.reassign:hover{background:var(--sage-light);color:var(--sage);border-color:var(--sage-mid);}
@@ -2916,7 +2920,7 @@ function buildAgenda() {
     const colDate2 = new Date(lunes); colDate2.setDate(lunes.getDate()+i);
     const tzOff2 = colDate2.getTimezoneOffset()*60000;
     const colStr2 = new Date(colDate2 - tzOff2).toISOString().split('T')[0];
-    h += `<div class="gh-day${isT?' today':''}" onclick="verTurnosDia('${colStr2}')" style="cursor:pointer" title="Ver turnos del día"><div class="gh-weekday">${d}</div><div class="gh-date">${dates[i]}</div><div class="gh-count">${cnt>0?'<span style=\'color:var(--sage);font-weight:500\'>' + cnt+' turno'+(cnt!==1?'s':'')+'</span>':'·'}</div></div>`;
+    h += `<div class="gh-day${isT?' today':''}" id="ghday-${colStr2}" onclick="seleccionarDia('${colStr2}')" style="cursor:pointer" title="Ver turnos del día"><div class="gh-weekday">${d}</div><div class="gh-date">${dates[i]}</div><div class="gh-count">${cnt>0?'<span style=\'color:var(--sage);font-weight:500\'>' + cnt+' turno'+(cnt!==1?'s':'')+'</span>':'·'}</div></div>`;
   });
   header.innerHTML = h;
 
@@ -2961,6 +2965,16 @@ function buildAgenda() {
 }
 
 function agendaWeek(dir) { agOffset += dir; buildAgenda(); }
+
+function seleccionarDia(fechaStr) {
+  // Quitar selected de todos los días
+  document.querySelectorAll('.gh-day').forEach(el => el.classList.remove('selected'));
+  // Agregar selected al día clickeado
+  const el = document.getElementById('ghday-' + fechaStr);
+  if (el) el.classList.add('selected');
+  // Mostrar turnos del día
+  verTurnosDia(fechaStr);
+}
 
 let _diaSeleccionado = null;
 
@@ -3014,7 +3028,7 @@ function verTurnosDia(fechaStr) {
         </div>
         <div>${estadoBadge}</div>
       </div>
-      <div class="sp-turno-actions" style="display:flex;gap:6px;margin-top:6px;padding-left:20px;flex-wrap:wrap">
+      <div class="sp-turno-actions">
         ${t.cobrado === undefined ? `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Finalizar sesión</button>
           <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>` : `<button class="row-btn accent" onclick="abrirFinalizarSesion('${t.id}')">✓ Ver estado</button>
           <button class="row-btn" onclick="enviarRecordatorioDia('${t.id}')">📱 Recordatorio</button>`}
@@ -3123,7 +3137,7 @@ function renderSidePanel() {
         </div>
         <div>${estadoBadge}</div>
       </div>
-      <div class="sp-turno-actions">${acciones}</div>
+      <div class="sp-turno-actions" style="display:flex;flex-direction:column;gap:5px;margin-top:10px;">${acciones}</div>
     </div>`;
   }).join('');
 }
@@ -3214,7 +3228,7 @@ function finalizarSesion(pago) {
     actualizarMetricasCobros();
     actualizarDashboard();
     closeModal('modal-finalizar-sesion');
-    renderSidePanel();
+    if (typeof _diaSeleccionado !== 'undefined' && _diaSeleccionado) verTurnosDia(_diaSeleccionado); else renderSidePanel();
     showToast('✅ Sesión cerrada · $' + montoRaw.toLocaleString('es-AR') + ' cobrado');
   } else {
     // NO PAGÓ: registrar como deuda
@@ -3249,7 +3263,7 @@ function finalizarSesion(pago) {
     actualizarMetricasCobros();
     actualizarDashboard();
     closeModal('modal-finalizar-sesion');
-    renderSidePanel();
+    if (typeof _diaSeleccionado !== 'undefined' && _diaSeleccionado) verTurnosDia(_diaSeleccionado); else renderSidePanel();
     showToast('📋 Deuda registrada · $' + montoRaw.toLocaleString('es-AR') + ' pendiente');
   }
 }
